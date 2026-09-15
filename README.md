@@ -36,8 +36,8 @@ providers' own usage endpoints.
   monitor the China Token Plan's 5-hour and weekly quota windows.
 - **Notch-native overlay.** The compact state is a black pill aligned to the
   physical notch, drawn with continuous (squircle) corners that match the
-  hardware. On non-notched displays it falls back to a configurable menu-bar
-  pill.
+  hardware. Automatic placement uses the notch on the built-in display and a
+  menu-bar icon when an external display is connected.
 - **Hover to peek.** The silhouette widens just enough to show each visible
   provider's 5-hour percentage and reset headline, or keep those headlines
   visible at rest with **Always show usage**.
@@ -97,8 +97,11 @@ providers' own usage endpoints.
   custom, resizable settings window with General, Display, and Providers tabs.
 - **English and Simplified Chinese.** Follow the macOS language automatically
   or choose a language in Settings.
+- **Display placement.** Choose Automatic, Notch, or Menu Bar. Automatic uses
+  the built-in Mac notch and switches to a menu-bar icon when an external
+  display is connected; clicking the icon opens all visible usage information.
 - **Display selection.** Auto-pick a notched display or pin the island to a
-  specific connected display. Non-notched displays offer compact and
+  specific connected display. Non-notched notch overlays offer compact and
   notch-style widths.
 - **Configurable safe polling.** Choose 5m, 15m, or 30m. The app does not offer
   sub-5-minute polling because Anthropic rate-limits the usage endpoint
@@ -218,13 +221,15 @@ memory so showing it again does not require a reset.
 ## Settings
 
 Settings is a custom `NSWindow`, not the system Settings scene. The app still
-runs as an accessory app with no Dock icon and no menu bar.
+runs as an accessory app with no Dock icon. In Menu Bar mode it exposes a
+status-bar icon instead of the notch overlay.
 
 - **General:** Launch at Login, 5m/15m/30m refresh interval, app language,
   Always show usage, Low Power Mode, configurable limit alerts, and Sparkle
   update controls.
-- **Display:** used/remaining percentages, Usage and Cost visualization styles,
-  target display, and island width on non-notched screens.
+- **Display:** automatic/notch/menu-bar placement, used/remaining percentages,
+  Usage and Cost visualization styles, target display, and island width on
+  non-notched notch overlays.
 - **Providers:** Claude/Codex/Grok/Antigravity/MiniMax CN visibility and status, token-counting mode, and a
   manual refresh for local cost data. Cost estimates can be displayed in USD,
   CNY, EUR, GBP, JPY, KRW, CAD, AUD, or CHF. Conversion uses a cached daily
@@ -380,13 +385,14 @@ Anthropic rate-limits `/api/oauth/usage` aggressively at the account level. The
 app exposes 5m, 15m, and 30m only.
 
 **Does it work without a notch?**
-Yes. It falls back to a compact menu-bar pill; Settings can switch it to the
-wider notch-style spacing.
+Yes. It uses a menu-bar icon; click the icon to open the full panel. If you
+force the Notch placement, Settings can switch between compact and wider
+notch-style spacing on non-notched displays.
 
 **Does it support multiple monitors?**
-Yes, with one island at a time. Auto mode prefers a notched display, then the
-main display. You can also pin the island to a connected display in Settings;
-if that display is unplugged, CodexIsland falls back to Auto.
+Yes. Automatic placement uses the built-in Mac notch without an external
+display and switches to a menu-bar icon when one is connected. The target
+display can still be pinned in Settings for the notch overlay.
 
 **Will the usage endpoints break?**
 Probably at some point. Both provider endpoints are undocumented. If the panel
@@ -403,8 +409,9 @@ Settings, and use Settings -> Quit to exit.
 - Claude and Codex usage endpoints are undocumented.
 - Sparkline history contains only readings CodexIsland records while it is
   running; providers do not expose historical usage series.
-- Multi-monitor setups use one island, pinned to or auto-selected for one
-  display at a time.
+- Multi-monitor setups use the built-in notch automatically and a menu-bar
+  icon when an external display is connected; Notch mode can pin one overlay
+  to a selected display.
 - Accessibility is partial: VoiceOver labels exist, but a high-contrast variant
   is not implemented yet.
 

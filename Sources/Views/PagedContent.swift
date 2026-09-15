@@ -18,11 +18,12 @@ struct PagedContent: View {
     @ObservedObject private var screenPref = ScreenPref.shared
     @State private var peekOffset: CGFloat = 0
     @State private var bumpOffset: CGFloat = 0
+    @State private var dragOffset: CGFloat = 0
 
     var body: some View {
         ContentSizedPageLayout(selectedPage: screenPref.screen.pageIndex,
                                position: CGFloat(screenPref.screen.pageIndex),
-                               feedbackOffset: peekOffset + bumpOffset) {
+                               feedbackOffset: peekOffset + bumpOffset + dragOffset) {
             UsageView()
                 .padding(.vertical, 24)
                 .accessibilityHidden(screenPref.screen != .usage)
@@ -33,6 +34,35 @@ struct PagedContent: View {
                 .accessibilityHidden(screenPref.screen != .overview)
         }
         .clipped()
+        .contentShape(Rectangle())
+        .gesture(
+            DragGesture(minimumDistance: 12)
+                .onChanged { value in
+                    let horizontal = abs(value.translation.width) > abs(value.translation.height)
+                    guard horizontal else { return }
+
+                    let atLeadingEdge = screenPref.screen.pageIndex == 0 && value.translation.width > 0
+                    let atTrailingEdge = screenPref.screen.pageIndex == ScreenPref.Screen.allCases.count - 1
+                        && value.translation.width < 0
+                    dragOffset = (atLeadingEdge || atTrailingEdge)
+                        ? value.translation.width * 0.24
+                        : value.translation.width
+                }
+                .onEnded { value in
+                    let horizontal = abs(value.translation.width) > abs(value.translation.height)
+                    let shouldAdvance = horizontal && value.translation.width < -48
+                    let shouldRewind = horizontal && value.translation.width > 48
+
+                    withAnimation(.pageSwipe) {
+                        dragOffset = 0
+                        if shouldAdvance {
+                            model.advanceScreen()
+                        } else if shouldRewind {
+                            model.rewindScreen()
+                        }
+                    }
+                }
+        )
         .onAppear {
             // Discoverability cue, not decorative motion — fires even
             // when @Environment(\.accessibilityReduceMotion) is on,

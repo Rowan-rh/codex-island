@@ -39,6 +39,19 @@ swiftc \
 
 swiftc \
   -parse-as-library \
+  -o "$OUT_DIR/display-presentation-tests" \
+  Sources/Model/NotchInfo.swift \
+  Sources/Model/IslandSpacingStore.swift \
+  Sources/Model/PreferenceStorage.swift \
+  Sources/Model/DisplayInfo.swift \
+  Sources/Model/IslandTargetDisplayStore.swift \
+  Sources/Model/DisplayPresentationStore.swift \
+  Tests/DisplayPresentationTests.swift
+
+"$OUT_DIR/display-presentation-tests"
+
+swiftc \
+  -parse-as-library \
   -o "$OUT_DIR/usage-merge-tests" \
   Sources/Model/UsageDisplayModeStore.swift \
   Sources/Usage/AppUsage.swift \

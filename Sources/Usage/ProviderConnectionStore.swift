@@ -58,6 +58,17 @@ final class ProviderConnectionStore: ObservableObject {
         }
     }
 
+    /// A launch can race network startup or the CLI's config becoming
+    /// readable. Give a provider with no reading one delayed retry without
+    /// weakening the normal five-minute polling guard.
+    func retrySelectedIfUnavailable() {
+        for provider in ProviderVisibilityStore.shared.selected where !provider.usesLegacyUsage {
+            let current = snapshot(provider)
+            guard !loading.contains(provider), current.updatedAt == nil, !current.needsLogin else { continue }
+            refresh(provider, manually: true)
+        }
+    }
+
     func refresh(_ provider: IslandProvider, manually: Bool = false) {
         guard !provider.usesLegacyUsage, !loading.contains(provider) else { return }
         if let until = cooldown[provider], until > Date() { return }

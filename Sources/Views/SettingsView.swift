@@ -18,6 +18,7 @@ struct SettingsView: View {
     @ObservedObject private var alertPrefs = AlertThresholdStore.shared
     @ObservedObject private var spacing = IslandSpacingStore.shared
     @ObservedObject private var usageDisplay = UsageDisplayModeStore.shared
+    @ObservedObject private var presentation = DisplayPresentationStore.shared
     @ObservedObject private var targetDisplay = IslandTargetDisplayStore.shared
     @ObservedObject private var appLanguage = AppLanguageStore.shared
     @ObservedObject private var usage = UsageStore.shared
@@ -161,6 +162,7 @@ struct SettingsView: View {
 
     private var displayTab: some View {
         VStack(alignment: .leading, spacing: 0) {
+            presentationSection
             usageDisplaySection
             chartSection
             costStyleSection
@@ -176,7 +178,8 @@ struct SettingsView: View {
     /// external). Reads the same resolver the window controller uses, so
     /// the gate stays in sync with where the island actually is.
     private var spacingSectionVisible: Bool {
-        DisplayInfo.currentTarget()?.notch.hasNotch == false
+        DisplayPresentationStore.shared.resolvedMode != .menuBar
+            && DisplayInfo.currentTarget()?.notch.hasNotch == false
     }
 
     private var providersTab: some View {
@@ -662,6 +665,37 @@ struct SettingsView: View {
         .padding(.horizontal, 14)
         .padding(.top, 18)
         .padding(.bottom, 14)
+    }
+
+    private var presentationSection: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            sectionLabel("Placement")
+            SettingsRow(
+                title: "Display location",
+                subtitle: presentationSubtitle
+            ) {
+                SegmentedControl(
+                    items: DisplayPresentationStore.Mode.allCases,
+                    selected: $presentation.mode,
+                    label: \.label,
+                    accessibilityPrefix: "Display location"
+                )
+            }
+        }
+        .padding(.horizontal, 14)
+        .padding(.top, 18)
+        .padding(.bottom, 14)
+    }
+
+    private var presentationSubtitle: String {
+        switch presentation.mode {
+        case .automatic:
+            return "Built-in notched display uses the island; an external display uses the menu bar."
+        case .notch:
+            return "Always show the island overlay on the selected display."
+        case .menuBar:
+            return "Show a menu bar icon; click it to open all usage information."
+        }
     }
 
     private var costStyleSection: some View {

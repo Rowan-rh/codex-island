@@ -76,7 +76,7 @@ MiniMax CN：
 - 可使用官方 MiniMax CLI 登录：`mmx auth login --recommend --region=cn`，也可以设置 `MINIMAX_CN_API_KEY`。
 - CodexIsland 只读取 `~/.mmx/config.json`（或 `MMX_CONFIG_DIR` 指定的目录），并以只读方式调用 MiniMax Token Plan 用量接口。请使用中国区订阅 Key，不要使用普通按量 API Key。
 
-应用启动后会立即进行第一次拉取，所以你第一次悬停时通常已经能看到数据。打开设置也会触发一次刷新。
+应用启动后会立即进行第一次拉取，所以你第一次悬停或点击菜单栏图标时通常已经能看到数据。打开设置也会触发一次刷新。
 
 ## 使用
 
@@ -95,7 +95,7 @@ MiniMax CN：
 
 ## 设置
 
-设置窗口是自定义 `NSWindow`，不是系统 Settings scene。应用仍以无 Dock 图标、无菜单栏的 accessory app 方式运行。
+设置窗口是自定义 `NSWindow`，不是系统 Settings scene。应用仍以无 Dock 图标的 accessory app 方式运行；菜单栏模式会显示状态图标。
 
 主要偏好：
 
@@ -105,6 +105,7 @@ MiniMax CN：
 | 成本样式 | `CostStylePref` | `MacIsland.costStyle` | `dollar`, `multi`, `tokens`, `spark` |
 | Token 统计 | `TokenCountModeStore` | `MacIsland.tokenCountMode` | `all`, `billable` |
 | 刷新间隔 | `RefreshIntervalStore` | `MacIsland.refreshInterval` | `300`, `900`, `1800` |
+| 显示位置 | `DisplayPresentationStore` | `MacIsland.displayPresentation` | `automatic`, `notch`, `menuBar` |
 | 低功耗模式 | `LowPowerModeStore` | `MacIsland.lowPowerMode` | Boolean，默认 `false` |
 | Claude 可见 | `ProviderVisibilityStore` | `MacIsland.claudeVisible` | Boolean，默认 `true` |
 | Codex 可见 | `ProviderVisibilityStore` | `MacIsland.codexVisible` | Boolean，默认 `true` |
