@@ -11,7 +11,7 @@ import SQLite3
 /// Both sources are read and deduplicated by message ID. Token data maps to
 /// the shared TokenEvent structure used by CostSummary and Pricing. Provider
 /// is inferred from the message's `providerID` field: "anthropic" → .claude,
-/// "openai" → .codex.
+/// "openai" → .codex, and "minimax-cn" → .minimaxCN.
 enum OpenCodeLogReader {
 
     // MARK: - Public
@@ -268,6 +268,7 @@ enum OpenCodeLogReader {
             switch provider {
             case "anthropic": mapped = .claude
             case "openai":    mapped = .codex
+            case "minimax-cn", "minimaxi": mapped = .minimaxCN
             default: return nil
             }
             return TokenEvent(

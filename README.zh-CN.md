@@ -15,6 +15,7 @@ CodexIsland 是一个原生 macOS 悬浮层，把 MacBook 刘海变成类似 Dyn
 ## 功能
 
 - **两个服务，四个窗口。** 在一个面板里显示 Claude 5 小时 + 7 天，以及 Codex 5 小时 + 7 天。
+- **支持 MiniMax CN。** 在设置 → 提供商中加入 `MiniMax CN`，查看中国区 Token Plan 的 5 小时和周额度。
 - **贴合刘海的悬浮层。** 紧凑状态是一个对齐物理刘海的黑色胶囊；没有刘海的 Mac 会退回到菜单栏胶囊。
 - **悬停预览。** 鼠标移到刘海附近时，胶囊会展开到足够显示每个可见服务的 5 小时百分比和重置提示。
 - **点击展开。** 点击岛可打开完整 Usage / Cost / Overview 面板，包含服务列、图表控制和分页。
@@ -69,6 +70,11 @@ Claude：
 - 运行一次 `claude`，或打开 Claude Desktop，让 Claude 凭据写入本机。
 - CodexIsland 会依次尝试 `CLAUDE_CODE_OAUTH_TOKEN`、macOS Keychain 里的 `Claude Code-credentials`，以及 Anthropic OAuth token endpoint 的刷新流程。
 - 如果都不可用，面板会显示 `auth required — run claude`。
+
+MiniMax CN：
+
+- 可使用官方 MiniMax CLI 登录：`mmx auth login --recommend --region=cn`，也可以设置 `MINIMAX_CN_API_KEY`。
+- CodexIsland 只读取 `~/.mmx/config.json`（或 `MMX_CONFIG_DIR` 指定的目录），并以只读方式调用 MiniMax Token Plan 用量接口。请使用中国区订阅 Key，不要使用普通按量 API Key。
 
 应用启动后会立即进行第一次拉取，所以你第一次悬停时通常已经能看到数据。打开设置也会触发一次刷新。
 

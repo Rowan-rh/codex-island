@@ -9,6 +9,7 @@ struct TokenEvent {
         case codex
         case grok
         case antigravity
+        case minimaxCN = "minimax-cn"
     }
 
     let provider: Provider

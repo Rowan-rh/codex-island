@@ -32,6 +32,8 @@ providers' own usage endpoints.
 
 - **Two providers, four windows.** Claude 5h + 7d and Codex 5h + 7d live in
   one panel.
+- **MiniMax CN Token Plan.** Add `minimax-cn` from Settings → Providers to
+  monitor the China Token Plan's 5-hour and weekly quota windows.
 - **Notch-native overlay.** The compact state is a black pill aligned to the
   physical notch, drawn with continuous (squircle) corners that match the
   hardware. On non-notched displays it falls back to a configurable menu-bar
@@ -182,6 +184,14 @@ For Claude:
   token.
 - If none work, the panel shows `auth required — run claude`.
 
+For MiniMax CN:
+
+- Install and sign in with the official MiniMax CLI (`mmx auth login --recommend --region=cn`),
+  or provide `MINIMAX_CN_API_KEY`.
+- CodexIsland reads the CLI's `~/.mmx/config.json` (or `MMX_CONFIG_DIR`) and
+  calls MiniMax's Token Plan quota endpoint read-only. Use a MiniMax CN
+  Subscription Key, not a regular pay-as-you-go API key.
+
 The first fetch starts at app launch so the panel usually has values ready by
 the first peek. Opening Settings also triggers a fresh fetch.
 
@@ -215,7 +225,7 @@ runs as an accessory app with no Dock icon and no menu bar.
   update controls.
 - **Display:** used/remaining percentages, Usage and Cost visualization styles,
   target display, and island width on non-notched screens.
-- **Providers:** Claude/Codex visibility and status, token-counting mode, and a
+- **Providers:** Claude/Codex/Grok/Antigravity/MiniMax CN visibility and status, token-counting mode, and a
   manual refresh for local cost data. Cost estimates can be displayed in USD,
   CNY, EUR, GBP, JPY, KRW, CAD, AUD, or CHF. Conversion uses a cached daily
   reference rate; the underlying model prices and cost calculations remain in

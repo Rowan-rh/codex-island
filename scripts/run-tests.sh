@@ -131,6 +131,18 @@ swiftc \
 
 "$OUT_DIR/provider-connection-tests"
 
+swiftc \
+  -parse-as-library \
+  -o "$OUT_DIR/minimax-connection-tests" \
+  Sources/Model/IslandProvider.swift \
+  Sources/Model/UsageDisplayModeStore.swift \
+  Sources/Usage/AppUsage.swift \
+  Sources/Usage/ConnectedUsage.swift \
+  Sources/Usage/MiniMaxConnection.swift \
+  Tests/MiniMaxConnectionTests.swift
+
+"$OUT_DIR/minimax-connection-tests"
+
 
 swiftc \
   -parse-as-library \

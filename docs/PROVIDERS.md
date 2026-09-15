@@ -35,6 +35,27 @@ a usable percentage, also query the default billing endpoint for `used / monthly
 On-demand spending is never substituted for included subscription quota. Missing
 percentages remain unknown; a billing period alone is not interpreted as zero usage.
 
+## MiniMax CN Token Plan
+
+Add `MiniMax CN` in Settings → Providers. The adapter reads
+`MINIMAX_CN_API_KEY`, then the official MiniMax CLI's `~/.mmx/config.json` (or
+`MMX_CONFIG_DIR/config.json`). It never refreshes OAuth credentials or writes
+the CLI config; run `mmx auth refresh` or `mmx auth login --recommend --region=cn`
+when the CLI needs to update its session.
+
+The request uses the China Token Plan endpoint
+`https://api.minimaxi.com/v1/token_plan/remains` with a Subscription Key. The
+response's `current_interval_remaining_percent` and
+`current_weekly_remaining_percent` are converted to CodexIsland's normalized
+used fraction. A weekly status of `3` means the plan has no weekly limit, so no
+fake weekly window is shown. The adapter also accepts the current count-based
+shape as a fallback and treats the count as remaining quota.
+
+If OpenCode records `providerID: "minimax-cn"` or `"minimaxi"`, those local
+token events are included in the MiniMax cost and history views. Subscription
+quota and local cost history remain separate; the cost page continues to label
+its numbers as API-equivalent estimates rather than a MiniMax invoice.
+
 When a connected provider reports no readings, its column shows an actionable
 empty state instead of an empty chart and reset timer. A successfully fetched
 Free plan shows “No active subscription”; paid or unknown plans show “Usage
@@ -126,6 +147,7 @@ These are CodexIsland display colors, not claims about official brand palettes.
 | Codex | Sky blue | `#5AA8F0` |
 | Grok | White | `#FFFFFF` |
 | Antigravity | Lilac | `#B69CFF` |
+| MiniMax CN | Orange | `#FF7E46` |
 
 Antigravity uses a separate hue from Codex so adjacent providers are recognizable
 at a glance. Green, amber, and red remain reserved for status and alerts. Keep
