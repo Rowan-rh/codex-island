@@ -15,11 +15,10 @@
 > Your AI usage limits, living in your notch.
 
 CodexIsland is a native macOS overlay that turns the MacBook notch into a
-Dynamic-Island-style live activity for Claude Code and Codex usage limits. It
-sits quietly over the notch, peeks on hover with the 5-hour headline, and
-expands on click to show both providers' 5-hour and weekly windows with reset
-timing, chart controls, local-log cost estimates, and a year-at-a-glance usage
-history.
+Dynamic-Island-style live activity for AI usage limits and account status. It
+sits quietly over the notch, peeks on hover, and expands on click to show
+provider limits or wallet balance alongside chart controls, local-log cost
+estimates, and a year-at-a-glance usage history.
 
 https://github.com/user-attachments/assets/195beeff-0f70-4d6b-8f3d-9f31d9c0b989
 
@@ -34,6 +33,9 @@ providers' own usage endpoints.
   one panel.
 - **MiniMax CN Token Plan.** Add `minimax-cn` from Settings → Providers to
   monitor the China Token Plan's 5-hour and weekly quota windows.
+- **DeepSeek wallet.** Add DeepSeek to show the current API wallet balance
+  reported by DeepSeek's official balance endpoint.
+- **Jev usage.** Add Jev to show local Jev/TypeSafe usage recorded by OpenCode.
 - **Notch-native overlay.** The compact state is a black pill aligned to the
   physical notch, drawn with continuous (squircle) corners that match the
   hardware. Automatic placement uses the notch on the built-in display and a
@@ -195,6 +197,23 @@ For MiniMax CN:
   calls MiniMax's Token Plan quota endpoint read-only. Use a MiniMax CN
   Subscription Key, not a regular pay-as-you-go API key.
 
+For DeepSeek:
+
+- Provide `DEEPSEEK_API_KEY`, or save it through DeepSeek Harness.
+- CodexIsland reads the key from the environment or the `refs` section of
+  `$DSH_HOME/.credentials.yaml` (normally `~/.dsh/.credentials.yaml`) and calls
+  `https://api.deepseek.com/user/balance` read-only.
+- The app shows wallet balance only; it does not use private dashboard APIs or
+  read browser sessions.
+
+For Jev:
+
+- CodexIsland reads local OpenCode session records whose provider is Jev or
+  TypeSafe and shows today's and this month's token usage.
+- Jev has no account-quota surface in the app: no remaining percentage,
+  reset countdown, or threshold alert is inferred.
+- Jev and TypeSafe credentials are not read, refreshed, or sent anywhere.
+
 The first fetch starts at app launch so the panel usually has values ready by
 the first peek. Opening Settings also triggers a fresh fetch.
 
@@ -230,7 +249,7 @@ status-bar icon instead of the notch overlay.
 - **Display:** automatic/notch/menu-bar placement, used/remaining percentages,
   Usage and Cost visualization styles, target display, and island width on
   non-notched notch overlays.
-- **Providers:** Claude/Codex/Grok/Antigravity/MiniMax CN visibility and status, token-counting mode, and a
+- **Providers:** Claude/Codex/Grok/Antigravity/MiniMax CN/DeepSeek/Jev visibility and status, token-counting mode, and a
   manual refresh for local cost data. Cost estimates can be displayed in USD,
   CNY, EUR, GBP, JPY, KRW, CAD, AUD, or CHF. Conversion uses a cached daily
   reference rate; the underlying model prices and cost calculations remain in
@@ -335,8 +354,10 @@ Native app behavior:
 - Codex tokens are read locally from `~/.codex/auth.json`.
 - Claude tokens are read from `CLAUDE_CODE_OAUTH_TOKEN`, Claude's credentials
   file, or the macOS Keychain. CodexIsland never refreshes or writes them.
-- Tokens leave the machine only as `Authorization` headers to `chatgpt.com` and
-  `api.anthropic.com`.
+- DeepSeek API keys are read from `DEEPSEEK_API_KEY` or the DeepSeek Harness
+  credential file. CodexIsland never writes that file.
+- Tokens leave the machine only as `Authorization` headers to their providers,
+  including `chatgpt.com`, `api.anthropic.com`, and `api.deepseek.com`.
 - The Cost screen reads local Claude Code session logs from
   `~/.claude/projects/**/*.jsonl` (and `~/.config/claude/...`, plus any path
   in `CLAUDE_CONFIG_DIR`), Codex session logs from `~/.codex/sessions/`, and
@@ -352,9 +373,8 @@ Native app behavior:
 The visitor badge at the top of this README is an external `hits.sh` image that
 counts badge requests. It is not bundled with or contacted by the native app.
 
-The network surface is concentrated in
-[`Sources/Usage/UsageFetcher.swift`](Sources/Usage/UsageFetcher.swift). The
-local log readers live in [`Sources/Cost/`](Sources/Cost/).
+Provider network adapters live in [`Sources/Usage/`](Sources/Usage/). The local
+log readers live in [`Sources/Cost/`](Sources/Cost/).
 
 ## Troubleshooting
 

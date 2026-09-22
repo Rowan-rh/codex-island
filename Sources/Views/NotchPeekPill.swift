@@ -126,6 +126,64 @@ struct NotchPeekPill: View {
     }
 }
 
+struct WalletPeekPill: View {
+    let balance: ConnectedBalance?
+    let loading: Bool
+    let tint: Color
+
+    var body: some View {
+        Group {
+            if loading && balance == nil {
+                LoadingDot()
+            } else if let balance {
+                Text(balance.formattedTotal)
+                    .font(Typography.bodyNumber)
+                    .foregroundStyle(tint)
+            } else {
+                Text("—")
+                    .font(Typography.bodyNumber)
+                    .foregroundStyle(.white.opacity(0.40))
+            }
+        }
+        .monospacedDigit()
+        .lineLimit(1)
+        .fixedSize()
+    }
+}
+
+struct LocalUsagePeekPill: View {
+    let window: CostWindow
+    let loading: Bool
+    let tint: Color
+
+    var body: some View {
+        Group {
+            if loading && window.error != nil {
+                LoadingDot()
+            } else if window.error != nil {
+                Text("—")
+                    .font(Typography.bodyNumber)
+                    .foregroundStyle(.white.opacity(0.40))
+            } else {
+                Text(Self.compactTokens(window.tokens))
+                    .font(Typography.bodyNumber)
+                    .foregroundStyle(tint)
+            }
+        }
+        .monospacedDigit()
+        .lineLimit(1)
+        .fixedSize()
+    }
+
+    private static func compactTokens(_ tokens: Int) -> String {
+        let value = Double(tokens)
+        if tokens < 1_000 { return "\(tokens)" }
+        if tokens < 1_000_000 { return String(format: "%.1fk", value / 1_000) }
+        if tokens < 1_000_000_000 { return String(format: "%.1fM", value / 1_000_000) }
+        return String(format: "%.1fB", value / 1_000_000_000)
+    }
+}
+
 private struct LoadingDot: View {
     @State private var pulsing = false
 

@@ -60,6 +60,10 @@ final class MenuBarController: NSObject, NSPopoverDelegate {
             .receive(on: RunLoop.main)
             .sink { [weak self] _ in self?.updateStatusView() }
             .store(in: &subscriptions)
+        CostStore.shared.$connectedCosts
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in self?.updateStatusView() }
+            .store(in: &subscriptions)
         UsageDisplayModeStore.shared.$mode
             .receive(on: RunLoop.main)
             .sink { [weak self] _ in self?.updateStatusView() }
@@ -149,7 +153,7 @@ final class MenuBarController: NSObject, NSPopoverDelegate {
     private func updateStatusView() {
         let mode = UsageDisplayModeStore.shared.mode
         let items = ProviderVisibilityStore.shared.selected.map { provider in
-            MenuBarStatusItem(provider: provider, percent: percent(for: provider, mode: mode))
+            MenuBarStatusItem(provider: provider, value: displayValue(for: provider, mode: mode))
         }
         guard items != lastItems else { return }
         lastItems = items
@@ -157,23 +161,35 @@ final class MenuBarController: NSObject, NSPopoverDelegate {
         statusItem.length = max(NSStatusItem.squareLength, statusView.fittingSize.width)
     }
 
-    private func percent(for provider: IslandProvider, mode: UsageDisplayMode) -> Int? {
+    private func displayValue(for provider: IslandProvider, mode: UsageDisplayMode) -> String? {
+        if provider == .deepseek {
+            return ProviderConnectionStore.shared.snapshot(provider).primaryBalance?.formattedTotal
+        }
+        if provider.usesLocalUsageOnly {
+            let window = CostStore.shared.cost(for: provider).today
+            guard window.error == nil else { return nil }
+            let value = Double(window.tokens)
+            if window.tokens < 1_000 { return "\(window.tokens)" }
+            if window.tokens < 1_000_000 { return String(format: "%.1fk", value / 1_000) }
+            if window.tokens < 1_000_000_000 { return String(format: "%.1fM", value / 1_000_000) }
+            return String(format: "%.1fB", value / 1_000_000_000)
+        }
         if provider == .claude || provider == .codex {
             let usage = provider == .claude ? UsageStore.shared.claude : UsageStore.shared.codex
             let window = usage.fiveHour
             guard window.hasReading else { return nil }
-            return window.displayedPercentInt(mode: mode)
+            return "\(window.displayedPercentInt(mode: mode))%"
         }
         guard let limit = ProviderConnectionStore.shared.primary(provider),
               let used = limit.usedFraction else { return nil }
         let displayed = mode == .used ? used : 1 - used
-        return Int((max(0, min(1, displayed)) * 100).rounded())
+        return "\(Int((max(0, min(1, displayed)) * 100).rounded()))%"
     }
 }
 
 private struct MenuBarStatusItem: Equatable {
     let provider: IslandProvider
-    let percent: Int?
+    let value: String?
 }
 
 private final class MenuBarStatusView: NSView {
@@ -238,7 +254,7 @@ private final class MenuBarStatusView: NSView {
             icon.heightAnchor.constraint(equalToConstant: 14)
         ])
 
-        let value = NSTextField(labelWithString: item.percent.map { "\($0)%" } ?? "—")
+        let value = NSTextField(labelWithString: item.value ?? "—")
         value.font = NSFont.monospacedDigitSystemFont(ofSize: 11, weight: .medium)
         value.textColor = .labelColor
         value.toolTip = item.provider.name
@@ -255,11 +271,15 @@ private final class MenuBarStatusView: NSView {
             case .grok: return ("grok_logo", "png")
             case .antigravity: return ("antigravity_logo", "png")
             case .minimaxCN: return ("minimax_logo", "svg")
+            case .jev: return nil
+            case .deepseek: return ("deepseek_logo", "svg")
             }
         }()
         guard let resource,
               let url = Bundle.main.url(forResource: resource.0, withExtension: resource.1) else {
-            return NSImage(systemSymbolName: "chart.bar.xaxis", accessibilityDescription: provider.name)
+            let symbol = provider == .deepseek ? "d.circle.fill"
+                : provider == .jev ? "j.circle.fill" : "chart.bar.xaxis"
+            return NSImage(systemSymbolName: symbol, accessibilityDescription: provider.name)
         }
         return NSImage(contentsOf: url)
     }
@@ -271,6 +291,8 @@ private final class MenuBarStatusView: NSView {
         case .grok: return .labelColor
         case .antigravity: return NSColor(calibratedRed: 182 / 255, green: 156 / 255, blue: 255 / 255, alpha: 1)
         case .minimaxCN: return NSColor(calibratedRed: 255 / 255, green: 126 / 255, blue: 70 / 255, alpha: 1)
+        case .jev: return NSColor(calibratedRed: 196 / 255, green: 148 / 255, blue: 255 / 255, alpha: 1)
+        case .deepseek: return NSColor(calibratedRed: 77 / 255, green: 107 / 255, blue: 254 / 255, alpha: 1)
         }
     }
 }

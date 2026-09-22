@@ -3,6 +3,7 @@ import SwiftUI
 struct ProviderSelectionView: View {
     @ObservedObject private var selection = ProviderVisibilityStore.shared
     @ObservedObject private var connections = ProviderConnectionStore.shared
+    @ObservedObject private var costs = CostStore.shared
     @ObservedObject private var usage = UsageStore.shared
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -104,12 +105,62 @@ struct ProviderSelectionView: View {
                     .padding(.leading, 28)
                 }
             }
+        } else if provider.usesLocalUsageOnly {
+            LocalUsageConnectionSection(provider: provider, cost: costs.cost(for: provider),
+                                         loading: costs.isLoading(provider),
+                                         notice: costs.localNotices[provider],
+                                         refresh: { costs.refresh() })
         } else {
             ProviderConnectionSection(provider: provider, snapshot: connections.snapshot(provider),
                 loading: connections.loading.contains(provider),
                 connect: { connections.connect(provider) },
                 refresh: { connections.refresh(provider, manually: true) })
         }
+    }
+}
+
+private struct LocalUsageConnectionSection: View {
+    let provider: IslandProvider
+    let cost: ProviderCost
+    let loading: Bool
+    let notice: String?
+    let refresh: () -> Void
+
+    private var hasUsage: Bool { cost.today.error == nil || cost.month.error == nil }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 8) {
+                ProviderAccountHeading(provider: provider, plan: nil)
+                if loading {
+                    ProgressView().controlSize(.small)
+                        .frame(width: 28, height: 28)
+                } else {
+                    Button(action: refresh) {
+                        Image(systemName: "arrow.clockwise").frame(width: 28, height: 28)
+                    }
+                    .buttonStyle(.plain)
+                    .help(L10n.tr("Refresh local usage"))
+                    .accessibilityLabel(L10n.tr("Refresh local usage"))
+                }
+            }
+            Label(L10n.tr(hasUsage ? "Local usage available" : "No local usage records yet"),
+                  systemImage: hasUsage ? "checkmark.circle" : "info.circle")
+                .font(.system(size: 11))
+                .foregroundStyle(.white.opacity(0.55))
+            if let notice {
+                Text(L10n.tr(notice))
+                    .font(.system(size: 12))
+                    .foregroundStyle(.white.opacity(0.65))
+                    .fixedSize(horizontal: false, vertical: true)
+            } else {
+                Text(L10n.tr("Jev usage is read from local session records."))
+                    .font(.system(size: 12))
+                    .foregroundStyle(.white.opacity(0.65))
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .padding(.leading, 28)
     }
 }
 
@@ -177,8 +228,9 @@ struct ProviderConnectionSection: View {
                     .font(.system(size: 11))
                     .foregroundStyle(.white.opacity(0.55))
                 if !loading {
-                    if signedIn, snapshot.primary == nil {
-                        Text(L10n.tr(provider == .grok ? "Credit usage unavailable" : "Usage unavailable"))
+                    if signedIn, snapshot.primary == nil, snapshot.primaryBalance == nil {
+                        Text(L10n.tr(provider == .grok ? "Credit usage unavailable"
+                            : provider == .deepseek ? "Wallet balance unavailable" : "Usage unavailable"))
                             .font(.system(size: 12)).foregroundStyle(.white.opacity(0.75))
                     } else if let message = snapshot.message {
                         Text(L10n.tr(message))
@@ -202,6 +254,7 @@ struct ProviderConnectionSection: View {
         switch provider {
         case .grok: return "Sign in again…"
         case .minimaxCN: return "Sign in with MiniMax CLI"
+        case .deepseek: return "Open DeepSeek API keys"
         default: return "Open agy CLI"
         }
     }

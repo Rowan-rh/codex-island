@@ -156,6 +156,17 @@ swiftc \
 
 "$OUT_DIR/minimax-connection-tests"
 
+swiftc \
+  -parse-as-library \
+  -o "$OUT_DIR/deepseek-connection-tests" \
+  Sources/Model/IslandProvider.swift \
+  Sources/Model/UsageDisplayModeStore.swift \
+  Sources/Usage/AppUsage.swift \
+  Sources/Usage/ConnectedUsage.swift \
+  Sources/Usage/DeepSeekConnection.swift \
+  Tests/DeepSeekConnectionTests.swift
+
+"$OUT_DIR/deepseek-connection-tests"
 
 swiftc \
   -parse-as-library \
@@ -191,6 +202,7 @@ swiftc \
   Sources/Cost/ProtobufFields.swift \
   Sources/Cost/AntigravityLogReader.swift \
   Sources/Cost/GrokLogReader.swift \
+  Sources/Cost/OpenCodeLogReader.swift \
   Sources/Cost/LogParseCache.swift \
   Sources/Cost/CostUsage.swift \
   Sources/Cost/CostBucketing.swift \

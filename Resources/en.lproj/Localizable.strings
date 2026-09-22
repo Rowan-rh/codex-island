@@ -216,6 +216,14 @@
 "Sign in with agy CLI to connect your subscription." = "Sign in with agy CLI to connect your subscription.";
 "Open agy CLI to restore your session, then refresh the connection." = "Open agy CLI to restore your session, then refresh the connection.";
 "Could not read Antigravity usage. Check your agy CLI login, then refresh." = "Could not read Antigravity usage. Check your agy CLI login, then refresh.";
+"Set DEEPSEEK_API_KEY or add it to DeepSeek Harness." = "Set DEEPSEEK_API_KEY or add it to DeepSeek Harness.";
+"Set DEEPSEEK_API_KEY or add it to DeepSeek Harness, then refresh." = "Set DEEPSEEK_API_KEY or add it to DeepSeek Harness, then refresh.";
+"Could not read the DeepSeek wallet balance. Check your API key, then refresh." = "Could not read the DeepSeek wallet balance. Check your API key, then refresh.";
+"Jev usage is read from local session records." = "Jev usage is read from local session records.";
+"Local usage available" = "Local usage available";
+"No local usage records yet" = "No local usage records yet";
+"Refresh local usage" = "Refresh local usage";
+"%@: %d tokens today" = "%@: %d tokens today";
 "Checking connection" = "Checking connection";
 "Signed in" = "Signed in";
 "Sign-in required" = "Sign-in required";
@@ -364,3 +372,14 @@
 "The usage archive changed. Scan again before saving." = "The usage archive changed. Scan again before saving.";
 "A selected recovery source is no longer available. Choose it again, then scan." = "A selected recovery source is no longer available. Choose it again, then scan.";
 "Saved token counts exceed the supported range. Check the recovery files before trying again." = "Saved token counts exceed the supported range. Check the recovery files before trying again.";
+
+"Wallet balance" = "Wallet balance";
+"Wallet balance unavailable" = "Wallet balance unavailable";
+"Connect your wallet" = "Connect your wallet";
+"Add a DeepSeek API key to see your wallet balance." = "Add a DeepSeek API key to see your wallet balance.";
+"DeepSeek did not report a wallet balance." = "DeepSeek did not report a wallet balance.";
+"Available for DeepSeek API calls." = "Available for DeepSeek API calls.";
+"DeepSeek reports that this wallet cannot make API calls." = "DeepSeek reports that this wallet cannot make API calls.";
+"Open DeepSeek API keys" = "Open DeepSeek API keys";
+"%@: wallet balance unavailable" = "%@: wallet balance unavailable";
+"%@: wallet balance %@" = "%@: wallet balance %@";
