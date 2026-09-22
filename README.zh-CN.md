@@ -16,6 +16,8 @@ CodexIsland 是一个原生 macOS 悬浮层，把 MacBook 刘海变成类似 Dyn
 
 - **两个服务，四个窗口。** 在一个面板里显示 Claude 5 小时 + 7 天，以及 Codex 5 小时 + 7 天。
 - **支持 MiniMax CN。** 在设置 → 提供商中加入 `MiniMax CN`，查看中国区 Token Plan 的 5 小时和周额度。
+- **DeepSeek 钱包。** 在设置 → 提供商中加入 DeepSeek，查看官方接口返回的 API 钱包余额。
+- **Jev 使用量。** 在设置 → 提供商中加入 Jev，查看 OpenCode 本地记录的 Jev 使用量。
 - **贴合刘海的悬浮层。** 紧凑状态是一个对齐物理刘海的黑色胶囊；没有刘海的 Mac 会退回到菜单栏胶囊。
 - **悬停预览。** 鼠标移到刘海附近时，胶囊会展开到足够显示每个可见服务的 5 小时百分比和重置提示。
 - **点击展开。** 点击岛可打开完整 Usage / Cost / Overview 面板，包含服务列、图表控制和分页。
@@ -75,6 +77,18 @@ MiniMax CN：
 
 - 可使用官方 MiniMax CLI 登录：`mmx auth login --recommend --region=cn`，也可以设置 `MINIMAX_CN_API_KEY`。
 - CodexIsland 只读取 `~/.mmx/config.json`（或 `MMX_CONFIG_DIR` 指定的目录），并以只读方式调用 MiniMax Token Plan 用量接口。请使用中国区订阅 Key，不要使用普通按量 API Key。
+
+DeepSeek：
+
+- 设置 `DEEPSEEK_API_KEY`，或通过 DeepSeek Harness 保存 API Key。
+- CodexIsland 只读获取环境变量或 `$DSH_HOME/.credentials.yaml`（默认 `~/.dsh/.credentials.yaml`）中 `refs` 下的密钥，并调用官方 `https://api.deepseek.com/user/balance` 接口。
+- 仅显示钱包余额，不调用私有用量接口，也不读取浏览器会话。
+
+Jev：
+
+- CodexIsland 只读取 OpenCode 本地会话中 Jev/TypeSafe 的记录，显示今天和本月的 Token 使用量。
+- 应用不查询 Jev 账户额度，不推断剩余额度、重置倒计时或阈值告警。
+- 应用不会读取、刷新或发送 Jev/TypeSafe 凭据。
 
 应用启动后会立即进行第一次拉取，所以你第一次悬停或点击菜单栏图标时通常已经能看到数据。打开设置也会触发一次刷新。
 

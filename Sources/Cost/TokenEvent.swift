@@ -10,6 +10,8 @@ struct TokenEvent {
         case grok
         case antigravity
         case minimaxCN = "minimax-cn"
+        case deepseek
+        case jev
     }
 
     let provider: Provider

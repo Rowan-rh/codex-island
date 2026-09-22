@@ -29,8 +29,34 @@ struct ConnectedLimit: Identifiable {
     }
 }
 
+struct ConnectedBalance: Identifiable, Equatable {
+    let currency: String
+    let total: Decimal
+    let granted: Decimal
+    let toppedUp: Decimal
+
+    var id: String { currency }
+
+    var formattedTotal: String {
+        Self.format(total, currency: currency)
+    }
+
+    private static func format(_ amount: Decimal, currency: String) -> String {
+        let formatter = NumberFormatter()
+        formatter.locale = .current
+        formatter.numberStyle = .currency
+        formatter.currencyCode = currency
+        formatter.minimumFractionDigits = 2
+        formatter.maximumFractionDigits = 2
+        if let value = formatter.string(from: NSDecimalNumber(decimal: amount)) { return value }
+        return "\(currency) \(NSDecimalNumber(decimal: amount).stringValue)"
+    }
+}
+
 struct ConnectedUsage {
     var limits: [ConnectedLimit] = []
+    var balances: [ConnectedBalance] = []
+    var balanceAvailable: Bool?
     var account: String?
     var accountID: String?
     var plan: String?
@@ -39,6 +65,7 @@ struct ConnectedUsage {
     var updatedAt: Date?
 
     var primary: ConnectedLimit? { limits.first { $0.usedFraction != nil } }
+    var primaryBalance: ConnectedBalance? { balances.first }
 
     var hasNoActiveSubscription: Bool {
         guard !needsLogin, updatedAt != nil, primary == nil else { return false }

@@ -418,10 +418,9 @@ private struct GlowLayer: View {
     }
 }
 
-/// Per-provider peek pill overlay. Observes ProviderVisibilityStore,
-/// UsageStore, and AlertEngine — but not CostStore, so a Codex log
-/// scan completing doesn't re-render the pill that has no cost data
-/// in it.
+/// Per-provider peek pill overlay. Quota-backed providers observe
+/// ProviderVisibilityStore, UsageStore, and AlertEngine; Jev observes the
+/// local CostStore instead because it has no account-quota surface.
 private struct PeekPillOverlay: View {
     let provider: IslandProvider
     let isLeft: Bool
@@ -432,18 +431,38 @@ private struct PeekPillOverlay: View {
     @ObservedObject private var connections = ProviderConnectionStore.shared
     @ObservedObject private var quotaPreferences = ProviderQuotaPreferences.shared
     @ObservedObject private var usageStore = UsageStore.shared
+    @ObservedObject private var costStore = CostStore.shared
     @ObservedObject private var alerts = AlertEngine.shared
 
     var body: some View {
         let window = currentWindow
-        NotchPeekPill(
-            usage: window,
-            loading: provider.usesLegacyUsage ? usageStore.loading : connections.loading.contains(provider),
-            tint: tint,
-            alignment: isLeft ? .leading : .trailing,
-            severity: severity,
-            windowLengthFallback: provider.usesLegacyUsage ? (currentWindowIsWeekly ? "7d" : "5h") : ""
-        )
+        Group {
+            if provider == .deepseek {
+                WalletPeekPill(
+                    balance: connections.snapshot(provider).primaryBalance,
+                    loading: connections.loading.contains(provider),
+                    tint: tint
+                )
+                .accessibilityLabel(balancePeekLabel)
+            } else if provider.usesLocalUsageOnly {
+                LocalUsagePeekPill(
+                    window: costStore.cost(for: provider).today,
+                    loading: costStore.isLoading(provider),
+                    tint: tint
+                )
+                .accessibilityLabel(localUsagePeekLabel)
+            } else {
+                NotchPeekPill(
+                    usage: window,
+                    loading: provider.usesLegacyUsage ? usageStore.loading : connections.loading.contains(provider),
+                    tint: tint,
+                    alignment: isLeft ? .leading : .trailing,
+                    severity: severity,
+                    windowLengthFallback: provider.usesLegacyUsage ? (currentWindowIsWeekly ? "7d" : "5h") : ""
+                )
+                .accessibilityLabel(peekLabel(for: window, provider: providerLabel, weekly: currentWindowIsWeekly))
+            }
+        }
         .padding(isLeft ? .leading : .trailing, 14)
         .padding(.top, topPadding)
         // Two opacity bindings stack:
@@ -456,7 +475,6 @@ private struct PeekPillOverlay: View {
         .animation(.openMorph, value: isVisible)
         .offset(x: pillsVisible ? 0 : (isLeft ? -6 : 6))
         .allowsHitTesting(false)
-        .accessibilityLabel(peekLabel(for: window, provider: providerLabel, weekly: currentWindowIsWeekly))
         // Mirror the visual opacity gate exactly — both `pillsVisible` and
         // `isVisible` must be true for the pill to render. Keying the
         // accessibility hide on only `isVisible` lets VoiceOver reach a
@@ -474,6 +492,7 @@ private struct PeekPillOverlay: View {
         case .codex:  return usageStore.codex.peekWindow
         case .grok, .antigravity, .minimaxCN:
             return connections.primary(provider)?.window ?? .unknown
+        case .deepseek, .jev: return .unknown
         }
     }
 
@@ -487,6 +506,21 @@ private struct PeekPillOverlay: View {
 
     private var tint: Color { provider.color }
     private var providerLabel: String { provider.name }
+
+    private var balancePeekLabel: String {
+        guard let balance = connections.snapshot(provider).primaryBalance else {
+            return L10n.tr("%@: wallet balance unavailable", providerLabel)
+        }
+        return L10n.tr("%@: wallet balance %@", providerLabel, balance.formattedTotal)
+    }
+
+    private var localUsagePeekLabel: String {
+        let window = costStore.cost(for: provider).today
+        guard window.error == nil else {
+            return L10n.tr("%@: usage unavailable", providerLabel)
+        }
+        return L10n.tr("%@: %d tokens today", providerLabel, window.tokens)
+    }
 
     private func peekLabel(for window: WindowUsage, provider: String, weekly: Bool) -> String {
         if !self.provider.usesLegacyUsage {

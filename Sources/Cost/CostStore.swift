@@ -30,7 +30,7 @@ final class CostStore: ObservableObject {
         switch provider {
         case .claude: return claude
         case .codex: return codex
-        case .grok, .antigravity, .minimaxCN:
+        case .grok, .antigravity, .minimaxCN, .deepseek, .jev:
             return connectedCosts[provider] ?? ProviderCost(
                 today: .unavailable(label: "Today", reason: "Local usage has not been loaded"),
                 month: .unavailable(label: CostBucketing.currentMonthLabel(), reason: "Local usage has not been loaded"))
@@ -41,7 +41,7 @@ final class CostStore: ObservableObject {
         switch provider {
         case .claude: return claudeLoading
         case .codex: return codexLoading
-        case .grok, .antigravity, .minimaxCN: return connectedLoading.contains(provider)
+        case .grok, .antigravity, .minimaxCN, .deepseek, .jev: return connectedLoading.contains(provider)
         }
     }
 
@@ -93,9 +93,10 @@ final class CostStore: ObservableObject {
             }
         }
         // Only scan OpenCode when at least one provider will consume
-        // the result; avoids wasted I/O when both are already loading.
+        // the result; avoids wasted I/O when all consumers are already loading.
+        let localProviders: [IslandProvider] = [.minimaxCN, .jev]
         let openCodeTask: Task<UsageLedger.Snapshot, Never>?
-        if !claudeLoading || !codexLoading || !connectedLoading.contains(.minimaxCN) {
+        if !claudeLoading || !codexLoading || localProviders.contains(where: { !connectedLoading.contains($0) }) {
             openCodeTask = Task.detached(priority: .userInitiated) {
                 let observedAt = Date()
                 return UsageLedger.shared.retain(OpenCodeLogReader.scan(lookbackDays: nil),
@@ -130,14 +131,14 @@ final class CostStore: ObservableObject {
                 await self?.commitCodex(cost, saveError: saved.saveError ?? openCode?.saveError)
             }
         }
-        if !connectedLoading.contains(.minimaxCN) {
-            connectedLoading.insert(.minimaxCN)
+        for provider in localProviders where !connectedLoading.contains(provider) {
+            connectedLoading.insert(provider)
             Task.detached(priority: .utility) { [weak self] in
                 let openCode = await openCodeTask?.value
-                let events = openCode?.events.filter { $0.provider == .minimaxCN } ?? []
+                let events = openCode?.events.filter { $0.provider == provider.costProvider } ?? []
                 let scan = LocalCostScan(events: events)
                 let cost = CostSummary.summarize(events: events)
-                await self?.commitLocal(cost, scan: scan, provider: .minimaxCN,
+                await self?.commitLocal(cost, scan: scan, provider: provider,
                                         saveError: openCode?.saveError)
             }
         }
@@ -398,6 +399,8 @@ extension IslandProvider {
         case .grok: return .grok
         case .antigravity: return .antigravity
         case .minimaxCN: return .minimaxCN
+        case .deepseek: return .deepseek
+        case .jev: return .jev
         }
     }
 }

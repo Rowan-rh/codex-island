@@ -126,7 +126,10 @@ struct PanelFooter: View {
 
     private var activeLoading: Bool {
         switch screenPref.screen {
-        case .usage: return usageStore.loading || visibility.selected.contains { connections.loading.contains($0) }
+        case .usage:
+            return usageStore.loading || visibility.selected.contains { provider in
+                provider.usesLocalUsageOnly ? costStore.isLoading(provider) : connections.loading.contains(provider)
+            }
         case .cost, .overview: return visibility.selected.contains { costStore.isLoading($0) }
         }
     }
@@ -135,7 +138,9 @@ struct PanelFooter: View {
         switch screenPref.screen {
         case .usage:
             let dates = visibility.selected.compactMap { provider in
-                provider.usesLegacyUsage ? usageStore.lastUpdated : connections.snapshot(provider).updatedAt
+                if provider.usesLegacyUsage { return usageStore.lastUpdated }
+                if provider.usesLocalUsageOnly { return costStore.updatedAt(provider) }
+                return connections.snapshot(provider).updatedAt
             }
             return dates.count == visibility.selected.count ? dates.min() : nil
         case .cost, .overview:
@@ -151,7 +156,7 @@ struct PanelFooter: View {
 
     private var connectionNeedsAttention: Bool {
         screenPref.screen == .usage && visibility.selected.contains {
-            !$0.usesLegacyUsage && connections.snapshot($0).updatedAt == nil
+            $0.usesConnectedQuota && connections.snapshot($0).updatedAt == nil
         }
     }
 
@@ -216,8 +221,12 @@ struct PanelFooter: View {
     private func triggerRefresh() {
         switch screenPref.screen {
         case .usage:
-            for provider in visibility.selected where !provider.usesLegacyUsage {
-                connections.refresh(provider, manually: true)
+            for provider in visibility.selected {
+                if provider.usesLocalUsageOnly {
+                    costStore.refresh()
+                } else if provider.usesConnectedQuota {
+                    connections.refresh(provider, manually: true)
+                }
             }
             usageStore.refresh()
         case .cost, .overview: costStore.refresh()
