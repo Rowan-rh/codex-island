@@ -55,6 +55,7 @@ struct UsageLedgerTests {
         defer { try? FileManager.default.removeItem(at: root) }
         let url = root.appendingPathComponent("archive/usage.sqlite3")
         let ledger = UsageLedger(url: url)
+        expect(!ledger.hasCompletedScan(source: .openCode), "a missing ledger has no completed OpenCode scan")
         let first = ledger.retain([event("one")], source: .claude, now: now)
         expect(first.saveError == nil && total(first.events) == 550, "capture preserves every token category")
         expect(ledger.retain([event("one")], source: .claude, now: now).events.count == 1, "repeated scans do not add usage")
@@ -74,6 +75,14 @@ struct UsageLedgerTests {
                "API estimates remain derived from separate raw token categories")
         expect(ledger.retain([event("one")], source: .openCode, now: now).events.count == 1,
                "independent clients with matching IDs stay separate")
+        expect(ledger.hasCompletedScan(source: .openCode), "a successful OpenCode retain records scan completion")
+        let incrementalLedger = UsageLedger(url: root.appendingPathComponent("incremental-opencode.sqlite3"))
+        _ = incrementalLedger.retain([event("old-opencode", date: now)], source: .openCode, now: now)
+        let incremental = incrementalLedger.retain(
+            [event("new-opencode", provider: .codex, date: later)],
+            source: .openCode, now: later, observedAt: later)
+        expect(incremental.events.count == 2,
+               "an incremental OpenCode scan retains history absent from the overlap window")
         expect(ledger.retain([event("one", provider: .codex)], source: .openCode, now: now).events.count == 2,
                "provider identity prevents cross-provider collisions")
         let fallback = TokenEvent(provider: .claude, timestamp: now, model: "unknown",
@@ -125,10 +134,14 @@ struct UsageLedgerTests {
         let brokenURL = root.appendingPathComponent("broken.sqlite3")
         let originalBytes = Data("not a database; preserve me".utf8)
         try originalBytes.write(to: brokenURL)
+        expect(!UsageLedger(url: brokenURL).hasCompletedScan(source: .openCode),
+               "an unreadable ledger falls back to a full OpenCode scan")
         let broken = UsageLedger(url: brokenURL).retain([event("live")], source: .claude, now: now)
         expect(broken.saveError != nil && broken.events.count == 1, "unreadable archive preserves current live usage")
         expect(try Data(contentsOf: brokenURL) == originalBytes, "unreadable archive is never reset or overwritten")
         try execute(url, sql: "PRAGMA user_version=99;")
+        expect(!ledger.hasCompletedScan(source: .openCode),
+               "an unsupported ledger schema falls back to a full OpenCode scan")
         expect(ledger.retain([event("future-schema")], source: .claude, now: later).saveError != nil,
                "unsupported future schemas are not overwritten")
         expect(try count(url) == beforeFailure + 1, "unsupported schema keeps existing saved events")

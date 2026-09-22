@@ -11,11 +11,13 @@ final class DisplayPresentationController {
     init() {
         DisplayPresentationStore.shared.$mode
             .dropFirst()
+            .receive(on: RunLoop.main)
             .sink { [weak self] _ in self?.reconcile() }
             .store(in: &subscriptions)
 
         IslandTargetDisplayStore.shared.$choice
             .dropFirst()
+            .receive(on: RunLoop.main)
             .sink { [weak self] _ in self?.reconcile() }
             .store(in: &subscriptions)
 

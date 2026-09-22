@@ -52,6 +52,15 @@ swiftc \
 
 swiftc \
   -parse-as-library \
+  -o "$OUT_DIR/update-feed-configuration-tests" \
+  Sources/Update/UpdateFeedConfiguration.swift \
+  Tests/UpdateFeedConfigurationTests.swift
+
+"$OUT_DIR/update-feed-configuration-tests"
+bash scripts/test-update-feed-config.sh
+
+swiftc \
+  -parse-as-library \
   -o "$OUT_DIR/usage-merge-tests" \
   Sources/Model/UsageDisplayModeStore.swift \
   Sources/Usage/AppUsage.swift \
@@ -65,6 +74,7 @@ swiftc \
   Sources/Model/UsageDisplayModeStore.swift \
   Sources/Usage/AppUsage.swift \
   Sources/Usage/ClaudeCredentials.swift \
+  Sources/Usage/ClaudeRateLimitPolicy.swift \
   Sources/Usage/WakeScheduling.swift \
   Tests/WakeRecoveryTests.swift
 
@@ -212,6 +222,14 @@ swiftc \
   Tests/LocalProviderCostTests.swift
 
 "$OUT_DIR/local-provider-cost-tests"
+
+swiftc \
+  -parse-as-library \
+  -o "$OUT_DIR/local-cost-refresh-tests" \
+  Sources/Cost/LocalCostRefresh.swift \
+  Tests/LocalCostRefreshTests.swift
+
+"$OUT_DIR/local-cost-refresh-tests"
 
 swiftc \
   -parse-as-library \

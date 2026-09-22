@@ -1,6 +1,15 @@
 import Foundation
 import Combine
 
+struct DisplayPresentationLifecycle {
+    private(set) var islandRequested = false
+
+    mutating func showIsland() { islandRequested = true }
+    mutating func hideIsland() { islandRequested = false }
+
+    var restoresIslandAfterUnlock: Bool { islandRequested }
+}
+
 @MainActor
 final class DisplayPresentationStore: ObservableObject {
     static let shared = DisplayPresentationStore()

@@ -39,6 +39,28 @@ final class UsageLedger {
         self.url = url
     }
 
+    func hasCompletedScan(source: Source) -> Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        guard FileManager.default.fileExists(atPath: url.path) else { return false }
+        var pointer: OpaquePointer?
+        defer { if let pointer { sqlite3_close(pointer) } }
+        guard sqlite3_open_v2(url.path, &pointer, SQLITE_OPEN_READONLY | SQLITE_OPEN_FULLMUTEX, nil) == SQLITE_OK,
+              let database = pointer else { return false }
+        sqlite3_busy_timeout(database, 5000)
+        guard let version = try? Self.statement(database, "PRAGMA user_version") else { return false }
+        let versionStatus = sqlite3_step(version)
+        let schemaVersion = sqlite3_column_int(version, 0)
+        sqlite3_finalize(version)
+        guard versionStatus == SQLITE_ROW, schemaVersion == 1 else { return false }
+        guard let statement = try? Self.statement(
+            database, "SELECT 1 FROM source_scans WHERE source=? LIMIT 1"
+        ) else { return false }
+        defer { sqlite3_finalize(statement) }
+        guard (try? Self.bind(source.rawValue, at: 1, to: statement)) != nil else { return false }
+        return sqlite3_step(statement) == SQLITE_ROW
+    }
+
     func retain(_ events: [TokenEvent], source: Source, now: Date = Date(), observedAt: Date? = nil,
                 insertOnly: Bool = false) -> Snapshot {
         lock.lock()

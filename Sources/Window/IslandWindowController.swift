@@ -20,6 +20,7 @@ final class IslandWindowController {
     private var cmdQMonitor: Any?
     private var hasStarted = false
     private var mouseTrackingInstalled = false
+    private var presentationLifecycle = DisplayPresentationLifecycle()
 
     static let windowSize = CGSize(width: 900, height: 360)
 
@@ -49,6 +50,7 @@ final class IslandWindowController {
     }
 
     func show() {
+        presentationLifecycle.showIsland()
         repositionForCurrentScreen()
         window.orderFrontRegardless()
         installMouseTrackingIfNeeded()
@@ -62,6 +64,7 @@ final class IslandWindowController {
     }
 
     func hide() {
+        presentationLifecycle.hideIsland()
         stopMouseTracking()
         window.orderOut(nil)
         if model.state != .compact { model.setState(.compact) }
@@ -273,6 +276,7 @@ final class IslandWindowController {
     }
 
     private func fadeIn() {
+        guard presentationLifecycle.restoresIslandAfterUnlock else { return }
         window.alphaValue = 0
         window.orderFrontRegardless()
         NSAnimationContext.runAnimationGroup { ctx in
