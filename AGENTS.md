@@ -3,6 +3,12 @@
 Read [CLAUDE.md](CLAUDE.md) before editing this repository. It contains the
 shared release, credential-handling, build, documentation, and style rules.
 
+## Git Rules
+
+- Write Git commit subjects and pull request titles in Chinese. Keep the
+  Conventional Commits prefix required by `CLAUDE.md`, for example:
+  `fix: 修复菜单栏模式切换`.
+
 ## Code Review Rules
 
 - Report actionable P0-P2 bugs introduced by the PR, with the triggering scenario,
