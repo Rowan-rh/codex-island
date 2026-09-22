@@ -18,8 +18,10 @@ final class WeeklyCardHistoryStore: ObservableObject {
         Task {
             let result = await Task.detached(priority: .utility) {
                 let now = Date()
-                let openCode = UsageLedger.shared.retain(OpenCodeLogReader.scan(lookbackDays: nil),
-                                                        source: .openCode, now: now, observedAt: now)
+                let openCodeScan = OpenCodeLogReader.scanResult(lookbackDays: nil)
+                let openCode = UsageLedger.shared.retain(openCodeScan.events,
+                                                        source: .openCode, now: now, observedAt: now,
+                                                        markScanComplete: openCodeScan.completed)
                 var buckets: [IslandProvider: [DailyTokenBucket]] = [:]
                 var partial = Set<IslandProvider>()
                 var saveErrors: [IslandProvider: String] = [:]
@@ -42,6 +44,11 @@ final class WeeklyCardHistoryStore: ObservableObject {
                     now: now, includeAllHistory: true, historicalDays: openCode.historicalDays
                 ).dailyTokens
                 saveErrors[.minimaxCN] = openCode.saveError
+                buckets[.jev] = CostSummary.summarize(
+                    events: openCode.events.filter { $0.provider == .jev },
+                    now: now, includeAllHistory: true, historicalDays: openCode.historicalDays
+                ).dailyTokens
+                saveErrors[.jev] = openCode.saveError
                 for provider in [IslandProvider.antigravity, .grok] {
                     let scan = provider == .antigravity
                         ? AntigravityLogReader.scan(lookbackDays: nil, now: now)

@@ -62,7 +62,7 @@ final class UsageLedger {
     }
 
     func retain(_ events: [TokenEvent], source: Source, now: Date = Date(), observedAt: Date? = nil,
-                insertOnly: Bool = false) -> Snapshot {
+                insertOnly: Bool = false, markScanComplete: Bool = true) -> Snapshot {
         lock.lock()
         defer { lock.unlock() }
         let incoming = Self.records(events, now: now)
@@ -85,7 +85,9 @@ final class UsageLedger {
                 let isCurrent = try Self.isCurrent(observedAt, source: source, database: database)
                 try Self.upsert(batch.records, source: source, now: now, updateExisting: isCurrent && !insertOnly, database: database)
                 try Self.saveAliases(batch.aliases, source: source, database: database)
-                if isCurrent && !insertOnly { try Self.recordScan(observedAt, source: source, database: database) }
+                if isCurrent && !insertOnly && markScanComplete {
+                    try Self.recordScan(observedAt, source: source, database: database)
+                }
                 try Self.execute(database, "COMMIT")
             } catch {
                 try? Self.execute(database, "ROLLBACK")

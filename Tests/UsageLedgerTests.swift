@@ -76,6 +76,10 @@ struct UsageLedgerTests {
         expect(ledger.retain([event("one")], source: .openCode, now: now).events.count == 1,
                "independent clients with matching IDs stay separate")
         expect(ledger.hasCompletedScan(source: .openCode), "a successful OpenCode retain records scan completion")
+        let incompleteLedger = UsageLedger(url: root.appendingPathComponent("incomplete-opencode.sqlite3"))
+        _ = incompleteLedger.retain([], source: .openCode, now: now, markScanComplete: false)
+        expect(!incompleteLedger.hasCompletedScan(source: .openCode),
+               "an incomplete OpenCode read keeps the next scan on full history")
         let incrementalLedger = UsageLedger(url: root.appendingPathComponent("incremental-opencode.sqlite3"))
         _ = incrementalLedger.retain([event("old-opencode", date: now)], source: .openCode, now: now)
         let incremental = incrementalLedger.retain(
