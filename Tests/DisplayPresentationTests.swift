@@ -16,7 +16,7 @@ struct DisplayPresentationTests {
         ) == .notch, "automatic mode uses the built-in notch")
         expect(DisplayPresentationStore.automaticMode(
             targetIsBuiltInNotched: true, hasExternalDisplay: true
-        ) == .notch, "an external display does not disable the built-in notch")
+        ) == .menuBar, "automatic mode uses the menu bar with an external display")
         expect(DisplayPresentationStore.automaticMode(
             targetIsBuiltInNotched: false, hasExternalDisplay: false
         ) == .menuBar, "automatic mode falls back to the menu bar without a notch")

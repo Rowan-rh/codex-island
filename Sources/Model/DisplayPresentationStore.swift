@@ -47,7 +47,8 @@ final class DisplayPresentationStore: ObservableObject {
     }
 
     nonisolated static func automaticMode(targetIsBuiltInNotched: Bool,
-                                          hasExternalDisplay _: Bool) -> Mode {
+                                          hasExternalDisplay: Bool) -> Mode {
+        if hasExternalDisplay { return .menuBar }
         return targetIsBuiltInNotched ? .notch : .menuBar
     }
 
