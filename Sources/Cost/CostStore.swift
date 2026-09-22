@@ -102,8 +102,10 @@ final class CostStore: ObservableObject {
                 let lookbackDays = LocalCostRefresh.openCodeLookbackDays(
                     hasCompletedScan: UsageLedger.shared.hasCompletedScan(source: .openCode)
                 )
-                return UsageLedger.shared.retain(OpenCodeLogReader.scan(lookbackDays: lookbackDays),
-                                                 source: .openCode, observedAt: observedAt)
+                let scan = OpenCodeLogReader.scanResult(lookbackDays: lookbackDays)
+                return UsageLedger.shared.retain(scan.events, source: .openCode,
+                                                 observedAt: observedAt,
+                                                 markScanComplete: scan.completed)
             }
         } else {
             openCodeTask = nil

@@ -303,5 +303,8 @@ final class IslandWindowController {
         let x = frame.midX - size.width / 2
         let y = frame.maxY - size.height
         window.setFrame(NSRect(x: x, y: y, width: size.width, height: size.height), display: true)
+        if mouseTrackingInstalled {
+            updateMouseEventsBasedOnCursor()
+        }
     }
 }

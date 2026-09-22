@@ -68,6 +68,10 @@ final class MenuBarController: NSObject, NSPopoverDelegate {
             .receive(on: RunLoop.main)
             .sink { [weak self] _ in self?.updateStatusView() }
             .store(in: &subscriptions)
+        ProviderQuotaPreferences.shared.$selections
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in self?.updateStatusView() }
+            .store(in: &subscriptions)
     }
 
     func setVisible(_ visible: Bool) {
@@ -176,7 +180,7 @@ final class MenuBarController: NSObject, NSPopoverDelegate {
         }
         if provider == .claude || provider == .codex {
             let usage = provider == .claude ? UsageStore.shared.claude : UsageStore.shared.codex
-            let window = usage.fiveHour
+            let window = provider == .codex ? usage.peekWindow : usage.fiveHour
             guard window.hasReading else { return nil }
             return "\(window.displayedPercentInt(mode: mode))%"
         }

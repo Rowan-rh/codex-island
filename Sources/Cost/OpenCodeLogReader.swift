@@ -13,6 +13,10 @@ import SQLite3
 /// is inferred from the message's `providerID` field: "anthropic" → .claude,
 /// "openai" → .codex, "minimax-cn" → .minimaxCN, and Jev/TypeSafe IDs → .jev.
 enum OpenCodeLogReader {
+    struct ScanResult {
+        let events: [TokenEvent]
+        let completed: Bool
+    }
 
     static func provider(for providerID: String) -> TokenEvent.Provider? {
         switch providerID {
@@ -27,10 +31,15 @@ enum OpenCodeLogReader {
     // MARK: - Public
 
     static func scan(lookbackDays: Int? = 30) -> [TokenEvent] {
+        scanResult(lookbackDays: lookbackDays).events
+    }
+
+    static func scanResult(lookbackDays: Int? = 30) -> ScanResult {
         let cutoff = lookbackDays.map { Date().addingTimeInterval(-Double($0) * 86400) } ?? .distantPast
         var seenIds = Set<String>()
         var seenFingerprints = Set<String>()
         var out: [TokenEvent] = []
+        var completed = true
 
         let emit: (ParsedEvent) -> Void = { ev in
             guard ev.timestamp >= cutoff else { return }
@@ -49,18 +58,26 @@ enum OpenCodeLogReader {
         }
 
         // SQLite databases take precedence (OpenCode 1.2+).
-        for dbPath in discoverDatabases() {
-            for ev in queryDatabase(at: dbPath, cutoff: cutoff) {
+        let databases = discoverDatabases()
+        completed = completed && databases.completed
+        for dbPath in databases.urls {
+            guard let events = queryDatabase(at: dbPath, cutoff: cutoff) else {
+                completed = false
+                continue
+            }
+            for ev in events {
                 emit(ev)
             }
         }
 
         // Supplement with legacy JSON files for pre-migration messages.
-        for ev in scanLegacyJSON(cutoff: cutoff) {
+        let legacy = scanLegacyJSON(cutoff: cutoff)
+        completed = completed && legacy.completed
+        for ev in legacy.events {
             emit(ev)
         }
 
-        return out
+        return ScanResult(events: out, completed: completed)
     }
 
     // MARK: - Path resolution
@@ -83,22 +100,23 @@ enum OpenCodeLogReader {
 
     // MARK: - SQLite (OpenCode 1.2+)
 
-    private static func discoverDatabases() -> [URL] {
+    private static func discoverDatabases() -> (urls: [URL], completed: Bool) {
         let root = dataRoot()
+        guard FileManager.default.fileExists(atPath: root.path) else { return ([], true) }
         guard let contents = try? FileManager.default.contentsOfDirectory(
             at: root, includingPropertiesForKeys: nil
-        ) else { return [] }
-        return contents.filter {
+        ) else { return ([], false) }
+        return (contents.filter {
             $0.lastPathComponent.hasPrefix("opencode") &&
             $0.pathExtension == "db"
-        }
+        }, true)
     }
 
-    private static func queryDatabase(at url: URL, cutoff: Date) -> [ParsedEvent] {
+    private static func queryDatabase(at url: URL, cutoff: Date) -> [ParsedEvent]? {
         var db: OpaquePointer?
         guard sqlite3_open_v2(
             url.path, &db, SQLITE_OPEN_READONLY | SQLITE_OPEN_NOMUTEX, nil
-        ) == SQLITE_OK, let db = db else { return [] }
+        ) == SQLITE_OK, let db = db else { return nil }
         defer { sqlite3_close(db) }
 
         let cutoffMs = Int64(cutoff.timeIntervalSince1970 * 1000)
@@ -112,13 +130,16 @@ enum OpenCodeLogReader {
 
         var stmt: OpaquePointer?
         guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK,
-              let stmt = stmt else { return [] }
+              let stmt = stmt else { return nil }
         defer { sqlite3_finalize(stmt) }
 
         sqlite3_bind_int64(stmt, 1, cutoffMs)
 
         var out: [ParsedEvent] = []
-        while sqlite3_step(stmt) == SQLITE_ROW {
+        while true {
+            let status = sqlite3_step(stmt)
+            if status == SQLITE_DONE { return out }
+            guard status == SQLITE_ROW else { return nil }
             guard let idPtr = sqlite3_column_text(stmt, 0),
                   let dataPtr = sqlite3_column_text(stmt, 1) else { continue }
             let messageId = String(cString: idPtr)
@@ -128,14 +149,13 @@ enum OpenCodeLogReader {
                   let ev = parseMessage(msg, messageId: messageId) else { continue }
             out.append(ev)
         }
-        return out
     }
 
     // MARK: - Legacy JSON
 
-    private static func scanLegacyJSON(cutoff: Date) -> [ParsedEvent] {
+    private static func scanLegacyJSON(cutoff: Date) -> (events: [ParsedEvent], completed: Bool) {
         let root = legacyRoot()
-        guard FileManager.default.fileExists(atPath: root.path) else { return [] }
+        guard FileManager.default.fileExists(atPath: root.path) else { return ([], true) }
 
         var cache = LogParseCache.loadCache(
             filename: "opencode-parse-cache.v1.json",
@@ -145,8 +165,10 @@ enum OpenCodeLogReader {
         var visited = Set<String>()
         var cacheChanged = false
         var out: [ParsedEvent] = []
+        var completed = true
 
-        for entry in jsonFiles(under: root, modifiedAfter: cutoff) {
+        guard let files = jsonFiles(under: root, modifiedAfter: cutoff) else { return ([], false) }
+        for entry in files {
             let path = entry.url.path
             visited.insert(path)
 
@@ -155,7 +177,12 @@ enum OpenCodeLogReader {
                hit.matches(mtime: entry.mtime, size: entry.size) {
                 events = hit.events
             } else {
-                events = parseJSONFile(at: entry.url)
+                let parsed = parseJSONFile(at: entry.url)
+                guard let parsed else {
+                    completed = false
+                    continue
+                }
+                events = parsed
                 cache.files[path] = LogParseCache.CachedFile(
                     mtime: entry.mtime, size: entry.size, events: events
                 )
@@ -171,14 +198,14 @@ enum OpenCodeLogReader {
         if cache.files.count != preCount { cacheChanged = true }
         if cacheChanged { LogParseCache.saveCache(cache, filename: "opencode-parse-cache.v1.json") }
 
-        return out
+        return (out, completed)
     }
 
     /// Mirror of `LogParseCache.jsonlFiles` for `.json` files.
     private static func jsonFiles(
         under root: URL,
         modifiedAfter cutoff: Date
-    ) -> [LogParseCache.FileEntry] {
+    ) -> [LogParseCache.FileEntry]? {
         let fm = FileManager.default
         guard let enumerator = fm.enumerator(
             at: root,
@@ -186,7 +213,7 @@ enum OpenCodeLogReader {
                 .isRegularFileKey, .contentModificationDateKey, .fileSizeKey
             ],
             options: [.skipsHiddenFiles, .skipsPackageDescendants]
-        ) else { return [] }
+        ) else { return nil }
 
         var hits: [LogParseCache.FileEntry] = []
         for case let url as URL in enumerator {
@@ -203,11 +230,13 @@ enum OpenCodeLogReader {
         return hits
     }
 
-    private static func parseJSONFile(at url: URL) -> [CachedEvent] {
+    private static func parseJSONFile(at url: URL) -> [CachedEvent]? {
         guard let data = try? Data(contentsOf: url),
-              let msg = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let ev = parseMessage(msg, messageId: url.deletingPathExtension().lastPathComponent)
-        else { return [] }
+              let msg = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+        else { return nil }
+        guard let ev = parseMessage(msg, messageId: url.deletingPathExtension().lastPathComponent) else {
+            return []
+        }
         return [CachedEvent(
             messageId: ev.messageId,
             timestamp: ev.timestamp,
