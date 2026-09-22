@@ -57,7 +57,6 @@ final class UsageStore: ObservableObject {
     /// (anthropics/claude-code#30930), so polling through it never recovers.
     /// After a rate-limited fetch, skip Claude fetches for this long.
     /// Deliberately in-memory only — a quit+relaunch retries immediately.
-    private static let rateLimitCooldown: TimeInterval = 900
     private var claudeCooldownUntil: Date?
 
     func refreshForSelectionChange() {
@@ -137,9 +136,9 @@ final class UsageStore: ObservableObject {
             let selection = ProviderVisibilityStore.shared.selected
             async let codexResult: AppUsage? = selection.contains(.codex) ? UsageFetcher.fetchCodex() : nil
             async let codexResetCreditsResult = selection.contains(.codex) ? UsageFetcher.fetchCodexResetCredits() : nil
-            let coolingDown = claudeCooldownUntil.map { Date() < $0 } ?? false
             var cl: AppUsage?
-            if !coolingDown && selection.contains(.claude) {
+            if ClaudeRateLimitPolicy.shouldFetch(cooldownUntil: claudeCooldownUntil, now: Date())
+                && selection.contains(.claude) {
                 cl = await UsageFetcher.fetchClaude()
             }
             let c = await codexResult
@@ -175,53 +174,37 @@ final class UsageStore: ObservableObject {
                     prior: priorCodex, provider: .codex, fillUnreported: false)
             }
             if let cl {
-                if UsageStore.isRateLimited(cl) {
-                    self.claudeCooldownUntil = Date().addingTimeInterval(UsageStore.rateLimitCooldown)
-                    NSLog("CodexIsland: Claude usage rate-limited; skipping Claude fetches for %.0fs", UsageStore.rateLimitCooldown)
-                    self.scheduleCooldownRetry()
+                if ClaudeRateLimitPolicy.isRateLimited(cl) {
+                    self.enterClaudeRateLimit(cl, at: now)
                 } else {
                     self.claudeCooldownUntil = nil
-                }
-                // A terminal auth failure (expired token / missing scope)
-                // REPLACES the retained reading rather than carrying it: the
-                // token can never refresh those numbers again, and
-                // `ChartsBlock` keys the re-auth prompt off the error-only
-                // shape. Transient errors (429/network) still carry forward.
-                let terminal = ClaudeCredentials.isTerminalAuthFailure(cl)
-                // Terminal failures keep the bare error-only shape — the
-                // re-auth panel keys off it, and seeding numbers under it
-                // would suppress the prompt. Transient failures refill like
-                // codex above.
-                let priorClaude = self.claude
-                self.claude = terminal
-                    ? cl
-                    : UsageStore.seeded(
-                        AppUsage.merged(fetched: cl, retaining: priorClaude, at: now),
-                        prior: priorClaude, provider: .claude, fillUnreported: false)
-                // "token expired" outlives its cause by up to a full poll
-                // interval: Claude Code rotates the token seconds after the
-                // user runs it, but the next scheduled poll is 5–30 min out.
-                // Watch the credential store's metadata and refetch the
-                // moment it changes.
-                if terminal {
-                    self.watchCredentialStore()
-                    // The one terminal failure a CLI ping can fix: an expired
-                    // token in a store nothing else maintains (desktop-app
-                    // Claude Code brings its own host-refreshed token and
-                    // never writes the CLI store). The ping's writeback is
-                    // what the credential watch then catches.
-                    if ClaudeCredentials.shouldSpawnRefreshPing(
-                        for: cl,
-                        alreadyAttempted: self.tokenRefreshPingAttempted,
-                        reauthInProgress: self.claudeReauthInProgress
-                    ) {
-                        self.tokenRefreshPingAttempted = true
-                        ClaudeCredentials.spawnTokenRefreshPing()
+                    // A terminal auth failure (expired token / missing scope)
+                    // REPLACES the retained reading rather than carrying it: the
+                    // token can never refresh those numbers again, and
+                    // `ChartsBlock` keys the re-auth prompt off the error-only
+                    // shape. Transient errors (429/network) still carry forward.
+                    let terminal = ClaudeCredentials.isTerminalAuthFailure(cl)
+                    let priorClaude = self.claude
+                    self.claude = terminal
+                        ? cl
+                        : UsageStore.seeded(
+                            AppUsage.merged(fetched: cl, retaining: priorClaude, at: now),
+                            prior: priorClaude, provider: .claude, fillUnreported: false)
+                    if terminal {
+                        self.watchCredentialStore()
+                        if ClaudeCredentials.shouldSpawnRefreshPing(
+                            for: cl,
+                            alreadyAttempted: self.tokenRefreshPingAttempted,
+                            reauthInProgress: self.claudeReauthInProgress
+                        ) {
+                            self.tokenRefreshPingAttempted = true
+                            ClaudeCredentials.spawnTokenRefreshPing()
+                        }
+                    } else if cl.fiveHour.error == nil || cl.weekly.error == nil {
+                        self.credWatchTask?.cancel()
+                        self.credWatchTask = nil
+                        self.tokenRefreshPingAttempted = false
                     }
-                } else if cl.fiveHour.error == nil || cl.weekly.error == nil {
-                    self.credWatchTask?.cancel()
-                    self.credWatchTask = nil
-                    self.tokenRefreshPingAttempted = false
                 }
             }
             if let codexResetCredits {
@@ -287,11 +270,17 @@ final class UsageStore: ObservableObject {
     }
 
 
-    /// True when the fetch resolved to the rate-limited error (both windows
-    /// carry the same message — see `UsageFetcher.errorPair`).
-    private static func isRateLimited(_ u: AppUsage) -> Bool {
-        u.fiveHour.error == ClaudeCredentials.rateLimitedMessage
-            && u.weekly.error == ClaudeCredentials.rateLimitedMessage
+    private func enterClaudeRateLimit(_ fetched: AppUsage, at now: Date) {
+        guard let deadline = ClaudeRateLimitPolicy.cooldownDeadline(for: fetched, now: now) else { return }
+        let prior = claude
+        claude = UsageStore.seeded(
+            AppUsage.merged(fetched: fetched, retaining: prior, at: now),
+            prior: prior, provider: .claude, fillUnreported: false)
+        claudeCooldownUntil = deadline
+        lastUpdated = now
+        NSLog("CodexIsland: Claude usage rate-limited; skipping Claude fetches for %.0fs",
+              ClaudeRateLimitPolicy.cooldownDuration)
+        scheduleCooldownRetry()
     }
 
     /// Replace current usage values with hand-tuned percentages so the
@@ -372,12 +361,22 @@ final class UsageStore: ObservableObject {
                     ClaudeCredentials.clearCache()
                 }
                 guard sawStoreWrite else { continue }
+                guard ClaudeRateLimitPolicy.shouldFetch(
+                    cooldownUntil: self?.claudeCooldownUntil, now: Date()
+                ) else { break }
                 let cl = await UsageFetcher.fetchClaude()
                 if Task.isCancelled { return }
                 // The usage limiter is sticky once tripped (see
                 // rateLimitCooldown) — retrying every 5s only feeds it. Bail
                 // and let the normal poll's cooldown machinery recover.
-                if cl.fiveHour.error == ClaudeCredentials.rateLimitedMessage { break }
+                if ClaudeRateLimitPolicy.isRateLimited(cl) {
+                    await MainActor.run {
+                        guard let self else { return }
+                        self.enterClaudeRateLimit(cl, at: Date())
+                        self.claudeReauthInProgress = false
+                    }
+                    return
+                }
                 if cl.fiveHour.error == nil || cl.weekly.error == nil {
                     await MainActor.run {
                         self?.claude = cl
@@ -575,7 +574,7 @@ final class UsageStore: ObservableObject {
     private func scheduleCooldownRetry() {
         cooldownRetryTask?.cancel()
         cooldownRetryTask = Task { [weak self] in
-            let delay = UsageStore.rateLimitCooldown + 10
+            let delay = ClaudeRateLimitPolicy.cooldownDuration + 10
             try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
             guard let self, !Task.isCancelled else { return }
             await self.waitOutWakeGrace()

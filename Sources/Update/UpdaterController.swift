@@ -13,22 +13,30 @@ import SwiftUI
 final class UpdaterController: ObservableObject {
     static let shared = UpdaterController()
 
-    private let controller: SPUStandardUpdaterController
+    private let controller: SPUStandardUpdaterController?
+    let isAvailable: Bool
 
     @Published var automaticallyChecks: Bool {
-        didSet { controller.updater.automaticallyChecksForUpdates = automaticallyChecks }
+        didSet { controller?.updater.automaticallyChecksForUpdates = automaticallyChecks }
     }
 
     private init() {
-        controller = SPUStandardUpdaterController(
-            startingUpdater: true,
-            updaterDelegate: nil,
-            userDriverDelegate: nil
-        )
-        automaticallyChecks = controller.updater.automaticallyChecksForUpdates
+        isAvailable = UpdateFeedConfiguration.isAvailable(infoDictionary: Bundle.main.infoDictionary)
+        if isAvailable {
+            let controller = SPUStandardUpdaterController(
+                startingUpdater: true,
+                updaterDelegate: nil,
+                userDriverDelegate: nil
+            )
+            self.controller = controller
+            automaticallyChecks = controller.updater.automaticallyChecksForUpdates
+        } else {
+            controller = nil
+            automaticallyChecks = false
+        }
     }
 
     func checkForUpdates() {
-        controller.checkForUpdates(nil)
+        controller?.checkForUpdates(nil)
     }
 }

@@ -99,7 +99,10 @@ final class CostStore: ObservableObject {
         if !claudeLoading || !codexLoading || localProviders.contains(where: { !connectedLoading.contains($0) }) {
             openCodeTask = Task.detached(priority: .userInitiated) {
                 let observedAt = Date()
-                return UsageLedger.shared.retain(OpenCodeLogReader.scan(lookbackDays: nil),
+                let lookbackDays = LocalCostRefresh.openCodeLookbackDays(
+                    hasCompletedScan: UsageLedger.shared.hasCompletedScan(source: .openCode)
+                )
+                return UsageLedger.shared.retain(OpenCodeLogReader.scan(lookbackDays: lookbackDays),
                                                  source: .openCode, observedAt: observedAt)
             }
         } else {
@@ -110,10 +113,13 @@ final class CostStore: ObservableObject {
         if !claudeLoading {
             claudeLoading = true
             Task.detached(priority: .userInitiated) { [weak self] in
-                let openCode = await openCodeTask?.value
-                let observedAt = Date()
-                let saved = UsageLedger.shared.retain(ClaudeLogReader.scan(lookbackDays: nil),
-                                                      source: .claude, observedAt: observedAt)
+                let result = await LocalCostRefresh.gather(local: {
+                    let observedAt = Date()
+                    return UsageLedger.shared.retain(ClaudeLogReader.scan(lookbackDays: nil),
+                                                     source: .claude, observedAt: observedAt)
+                }, shared: openCodeTask)
+                let saved = result.local
+                let openCode = result.shared
                 let events = saved.events + (openCode?.events.filter { $0.provider == .claude } ?? [])
                 let cost = CostSummary.summarize(events: events, historicalDays: saved.historicalDays)
                 await self?.commitClaude(cost, saveError: saved.saveError ?? openCode?.saveError)
@@ -122,10 +128,13 @@ final class CostStore: ObservableObject {
         if !codexLoading {
             codexLoading = true
             Task.detached(priority: .userInitiated) { [weak self] in
-                let openCode = await openCodeTask?.value
-                let observedAt = Date()
-                let saved = UsageLedger.shared.retain(CodexLogReader.scan(lookbackDays: nil),
-                                                      source: .codex, observedAt: observedAt)
+                let result = await LocalCostRefresh.gather(local: {
+                    let observedAt = Date()
+                    return UsageLedger.shared.retain(CodexLogReader.scan(lookbackDays: nil),
+                                                     source: .codex, observedAt: observedAt)
+                }, shared: openCodeTask)
+                let saved = result.local
+                let openCode = result.shared
                 let events = saved.events + (openCode?.events.filter { $0.provider == .codex } ?? [])
                 let cost = CostSummary.summarize(events: events, historicalDays: saved.historicalDays)
                 await self?.commitCodex(cost, saveError: saved.saveError ?? openCode?.saveError)

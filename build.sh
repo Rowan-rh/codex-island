@@ -32,7 +32,7 @@ SPARKLE_FW="$SPARKLE_DIR/Sparkle.framework"
 # changing it strands them.
 SU_PUBLIC_KEY="bz1gwLBKgIL/Y7OO23o3gaMNIeTpvv/C90F9inr9Quo="
 
-SU_FEED_URL="${SU_FEED_URL:-https://github.com/ericjypark/codex-island/releases/latest/download/appcast.xml}"
+source ./scripts/update-feed-config.sh
 
 rm -rf "$BUILD_DIR"
 mkdir -p "$MACOS_DIR" "$RES_DIR" "$FRAMEWORKS_DIR"
@@ -98,7 +98,7 @@ cat > "$CONTENTS/Info.plist" <<EOF
   <key>NSHighResolutionCapable</key><true/>
   <key>NSPrincipalClass</key><string>NSApplication</string>
   <key>NSHumanReadableCopyright</key><string>Copyright © 2026 Eric Park. MIT licensed.</string>
-  <key>SUFeedURL</key><string>$SU_FEED_URL</string>
+$SU_FEED_PLIST_ENTRY
   <key>SUPublicEDKey</key><string>$SU_PUBLIC_KEY</string>
   <key>SUEnableAutomaticChecks</key><true/>
 </dict>

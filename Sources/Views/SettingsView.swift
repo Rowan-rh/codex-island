@@ -469,12 +469,16 @@ struct SettingsView: View {
                 SettingsToggle(isOn: updater.automaticallyChecks) {
                     updater.automaticallyChecks.toggle()
                 }
+                .disabled(!updater.isAvailable)
+                .opacity(updater.isAvailable ? 1 : 0.4)
             }
             SettingsRow(
                 title: "Check now",
                 subtitle: "Look for a new version immediately."
             ) {
                 PillButton(label: "Check") { updater.checkForUpdates() }
+                    .disabled(!updater.isAvailable)
+                    .opacity(updater.isAvailable ? 1 : 0.4)
             }
         }
         .padding(.horizontal, 14)

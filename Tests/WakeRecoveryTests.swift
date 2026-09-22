@@ -103,6 +103,15 @@ struct WakeRecoveryTests {
             errored(ClaudeCredentials.rateLimitedMessage),
             errored(ClaudeCredentials.rateLimitedMessage)
         )
+        let cooldownDeadline = ClaudeRateLimitPolicy.cooldownDeadline(for: rateLimited, now: now)
+        expect(cooldownDeadline == now.addingTimeInterval(900), "a 429 pair starts the fifteen-minute cooldown")
+        expect(!ClaudeRateLimitPolicy.shouldFetch(cooldownUntil: cooldownDeadline, now: now.addingTimeInterval(899)),
+               "Claude fetches stay paused inside the cooldown")
+        expect(ClaudeRateLimitPolicy.shouldFetch(cooldownUntil: cooldownDeadline, now: now.addingTimeInterval(900)),
+               "Claude fetches resume when the cooldown expires")
+        let oneWindowFailure = pair(errored(ClaudeCredentials.rateLimitedMessage), reading(0.2))
+        expect(ClaudeRateLimitPolicy.cooldownDeadline(for: oneWindowFailure, now: now) == nil,
+               "one failed window cannot falsely arm a provider-wide cooldown")
 
         // A 429 straight at wake: the 5h reading died during sleep (reset
         // passed), so its tile blanks to "—" even though we had a number.
