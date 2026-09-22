@@ -37,6 +37,11 @@ final class WeeklyCardHistoryStore: ObservableObject {
                 ).dailyTokens
                 saveErrors[.claude] = claude.saveError ?? openCode.saveError
                 saveErrors[.codex] = codex.saveError ?? openCode.saveError
+                buckets[.minimaxCN] = CostSummary.summarize(
+                    events: openCode.events.filter { $0.provider == .minimaxCN },
+                    now: now, includeAllHistory: true, historicalDays: openCode.historicalDays
+                ).dailyTokens
+                saveErrors[.minimaxCN] = openCode.saveError
                 for provider in [IslandProvider.antigravity, .grok] {
                     let scan = provider == .antigravity
                         ? AntigravityLogReader.scan(lookbackDays: nil, now: now)

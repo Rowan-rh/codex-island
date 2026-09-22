@@ -18,6 +18,8 @@ final class IslandWindowController {
     private var hasSeenMouseEvent = false
     private var isMouseInsideIsland = false
     private var cmdQMonitor: Any?
+    private var hasStarted = false
+    private var mouseTrackingInstalled = false
 
     static let windowSize = CGSize(width: 900, height: 360)
 
@@ -49,12 +51,20 @@ final class IslandWindowController {
     func show() {
         repositionForCurrentScreen()
         window.orderFrontRegardless()
+        installMouseTrackingIfNeeded()
+        guard !hasStarted else { return }
+        hasStarted = true
         NSApp.activate(ignoringOtherApps: true)
-        installMouseTracking()
         observeScreenChanges()
         observeTargetChoice()
         observeOcclusion()
         observeSessionState()
+    }
+
+    func hide() {
+        stopMouseTracking()
+        window.orderOut(nil)
+        if model.state != .compact { model.setState(.compact) }
     }
 
     deinit {
@@ -83,7 +93,9 @@ final class IslandWindowController {
     /// The hitTest override on IslandHostingView is necessary but not
     /// sufficient — without the global monitor, the window still steals focus
     /// on click even when hitTest returns nil.
-    private func installMouseTracking() {
+    private func installMouseTrackingIfNeeded() {
+        guard !mouseTrackingInstalled else { return }
+        mouseTrackingInstalled = true
         window.ignoresMouseEvents = true
 
         let handler: (NSEvent) -> Void = { [weak self] _ in
@@ -107,6 +119,22 @@ final class IslandWindowController {
         trackingTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
             Task { @MainActor in self?.updateMouseEventsBasedOnCursor() }
         }
+    }
+
+    private func stopMouseTracking() {
+        guard mouseTrackingInstalled else { return }
+        if let monitor = globalMouseMonitor { NSEvent.removeMonitor(monitor) }
+        if let monitor = localMouseMonitor { NSEvent.removeMonitor(monitor) }
+        if let monitor = cmdQMonitor { NSEvent.removeMonitor(monitor) }
+        trackingTimer?.invalidate()
+        globalMouseMonitor = nil
+        localMouseMonitor = nil
+        cmdQMonitor = nil
+        trackingTimer = nil
+        hasSeenMouseEvent = false
+        isMouseInsideIsland = false
+        mouseTrackingInstalled = false
+        window.ignoresMouseEvents = true
     }
 
     private func invalidateTrackingTimerIfReady() {

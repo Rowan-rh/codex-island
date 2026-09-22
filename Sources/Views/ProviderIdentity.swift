@@ -19,6 +19,9 @@ extension IslandProvider {
         case .codex: return IslandColor.codex
         case .grok: return IslandColor.grok
         case .antigravity: return IslandColor.antigravity
+        case .minimaxCN: return IslandColor.minimaxCN
+        case .deepseek: return IslandColor.deepseek
+        case .jev: return IslandColor.jev
         }
     }
     var legacy: AlertEngine.Provider? {
@@ -37,6 +40,8 @@ struct ProviderMark: View {
 
     private static let grok = Bundle.main.url(forResource: "grok_logo", withExtension: "png").flatMap { NSImage(contentsOf: $0) }
     private static let antigravity = Bundle.main.url(forResource: "antigravity_logo", withExtension: "png").flatMap { NSImage(contentsOf: $0) }
+    private static let minimaxCN = Bundle.main.url(forResource: "minimax_logo", withExtension: "svg").flatMap { NSImage(contentsOf: $0) }
+    private static let deepseek = Bundle.main.url(forResource: "deepseek_logo", withExtension: "svg").flatMap { NSImage(contentsOf: $0) }
 
     private var image: NSImage? {
         switch provider {
@@ -44,6 +49,9 @@ struct ProviderMark: View {
         case .codex: return Self.codex
         case .grok: return Self.grok
         case .antigravity: return Self.antigravity
+        case .minimaxCN: return Self.minimaxCN
+        case .deepseek: return Self.deepseek
+        case .jev: return nil
         }
     }
 
@@ -52,7 +60,9 @@ struct ProviderMark: View {
             if let image {
                 Image(nsImage: image).resizable().renderingMode(.template).scaledToFit()
             } else {
-                Image(systemName: provider == .grok ? "asterisk" : "a.circle")
+                Image(systemName: provider == .grok ? "asterisk"
+                    : provider == .deepseek ? "d.circle.fill"
+                    : provider == .jev ? "j.circle.fill" : "a.circle")
                     .resizable().scaledToFit()
             }
         }

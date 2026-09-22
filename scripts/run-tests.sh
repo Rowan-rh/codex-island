@@ -39,6 +39,19 @@ swiftc \
 
 swiftc \
   -parse-as-library \
+  -o "$OUT_DIR/display-presentation-tests" \
+  Sources/Model/NotchInfo.swift \
+  Sources/Model/IslandSpacingStore.swift \
+  Sources/Model/PreferenceStorage.swift \
+  Sources/Model/DisplayInfo.swift \
+  Sources/Model/IslandTargetDisplayStore.swift \
+  Sources/Model/DisplayPresentationStore.swift \
+  Tests/DisplayPresentationTests.swift
+
+"$OUT_DIR/display-presentation-tests"
+
+swiftc \
+  -parse-as-library \
   -o "$OUT_DIR/usage-merge-tests" \
   Sources/Model/UsageDisplayModeStore.swift \
   Sources/Usage/AppUsage.swift \
@@ -131,6 +144,29 @@ swiftc \
 
 "$OUT_DIR/provider-connection-tests"
 
+swiftc \
+  -parse-as-library \
+  -o "$OUT_DIR/minimax-connection-tests" \
+  Sources/Model/IslandProvider.swift \
+  Sources/Model/UsageDisplayModeStore.swift \
+  Sources/Usage/AppUsage.swift \
+  Sources/Usage/ConnectedUsage.swift \
+  Sources/Usage/MiniMaxConnection.swift \
+  Tests/MiniMaxConnectionTests.swift
+
+"$OUT_DIR/minimax-connection-tests"
+
+swiftc \
+  -parse-as-library \
+  -o "$OUT_DIR/deepseek-connection-tests" \
+  Sources/Model/IslandProvider.swift \
+  Sources/Model/UsageDisplayModeStore.swift \
+  Sources/Usage/AppUsage.swift \
+  Sources/Usage/ConnectedUsage.swift \
+  Sources/Usage/DeepSeekConnection.swift \
+  Tests/DeepSeekConnectionTests.swift
+
+"$OUT_DIR/deepseek-connection-tests"
 
 swiftc \
   -parse-as-library \
@@ -166,6 +202,7 @@ swiftc \
   Sources/Cost/ProtobufFields.swift \
   Sources/Cost/AntigravityLogReader.swift \
   Sources/Cost/GrokLogReader.swift \
+  Sources/Cost/OpenCodeLogReader.swift \
   Sources/Cost/LogParseCache.swift \
   Sources/Cost/CostUsage.swift \
   Sources/Cost/CostBucketing.swift \

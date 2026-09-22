@@ -9,12 +9,48 @@ struct PageIndicator: View {
     @ObservedObject private var screenPref = ScreenPref.shared
 
     var body: some View {
-        HStack(spacing: 5) {
+        HStack(spacing: 8) {
+            navigationButton(direction: .backward)
             ForEach(ScreenPref.Screen.allCases, id: \.self) { screen in
                 dot(for: screen)
             }
+            navigationButton(direction: .forward)
         }
         .animation(.strongEaseOut, value: screenPref.screen)
+    }
+
+    private enum NavigationDirection {
+        case backward
+        case forward
+
+        var symbolName: String {
+            switch self {
+            case .backward: return "chevron.left"
+            case .forward: return "chevron.right"
+            }
+        }
+    }
+
+    private func navigationButton(direction: NavigationDirection) -> some View {
+        let isDisabled = direction == .backward
+            ? screenPref.screen.pageIndex == 0
+            : screenPref.screen.pageIndex == ScreenPref.Screen.allCases.count - 1
+        return Button {
+            switch direction {
+            case .backward: model.rewindScreen()
+            case .forward: model.advanceScreen()
+            }
+        } label: {
+            Image(systemName: direction.symbolName)
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(.white.opacity(isDisabled ? 0.18 : 0.72))
+                .frame(width: 28, height: 28)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .disabled(isDisabled)
+        .help(direction == .backward ? L10n.tr("Previous page") : L10n.tr("Next page"))
+        .accessibilityLabel(direction == .backward ? L10n.tr("Previous page") : L10n.tr("Next page"))
     }
 
     private func dot(for screen: ScreenPref.Screen) -> some View {

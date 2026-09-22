@@ -5,9 +5,11 @@ occupies the left slot. Picking the provider already in the other slot swaps
 them; the central swap button does the same. Existing Claude/Codex visibility
 preferences migrate automatically, and order persists across launches.
 
-All providers use the same Ring, Bar, Stepped, Numeric, and Sparkline views,
+Quota providers use the same Ring, Bar, Stepped, Numeric, and Sparkline views,
 used/remaining preference, peek pills, and threshold alerts. A provider's data
 selects the metrics; changing providers does not change the chart style.
+DeepSeek instead renders its currency-denominated wallet balance and does not
+participate in percentage threshold alerts.
 
 ## Codex limit windows
 
@@ -35,6 +37,27 @@ a usable percentage, also query the default billing endpoint for `used / monthly
 On-demand spending is never substituted for included subscription quota. Missing
 percentages remain unknown; a billing period alone is not interpreted as zero usage.
 
+## MiniMax CN Token Plan
+
+Add `MiniMax CN` in Settings → Providers. The adapter reads
+`MINIMAX_CN_API_KEY`, then the official MiniMax CLI's `~/.mmx/config.json` (or
+`MMX_CONFIG_DIR/config.json`). It never refreshes OAuth credentials or writes
+the CLI config; run `mmx auth refresh` or `mmx auth login --recommend --region=cn`
+when the CLI needs to update its session.
+
+The request uses the China Token Plan endpoint
+`https://api.minimaxi.com/v1/token_plan/remains` with a Subscription Key. The
+response's `current_interval_remaining_percent` and
+`current_weekly_remaining_percent` are converted to CodexIsland's normalized
+used fraction. A weekly status of `3` means the plan has no weekly limit, so no
+fake weekly window is shown. The adapter also accepts the current count-based
+shape as a fallback and treats the count as remaining quota.
+
+If OpenCode records `providerID: "minimax-cn"` or `"minimaxi"`, those local
+token events are included in the MiniMax cost and history views. Subscription
+quota and local cost history remain separate; the cost page continues to label
+its numbers as API-equivalent estimates rather than a MiniMax invoice.
+
 When a connected provider reports no readings, its column shows an actionable
 empty state instead of an empty chart and reset timer. A successfully fetched
 Free plan shows “No active subscription”; paid or unknown plans show “Usage
@@ -42,6 +65,38 @@ unavailable.” Both link to provider settings. Actual readings, including 0%,
 remain visible regardless of the plan label. The Cost page reuses the same
 subscription state when both cost windows are unavailable and contain no usage;
 existing cost records remain visible.
+
+## DeepSeek wallet
+
+Add `DeepSeek` in Settings → Providers. The adapter reads `DEEPSEEK_API_KEY`,
+then the `DEEPSEEK_API_KEY` entry under `refs` in the official DeepSeek
+Harness credential store at `$DSH_HOME/.credentials.yaml` (default
+`~/.dsh/.credentials.yaml`). Access is read-only; CodexIsland never saves,
+refreshes, or changes the key.
+
+The request uses DeepSeek's documented
+`https://api.deepseek.com/user/balance` endpoint. The returned total balance is
+displayed in its reported currency in the expanded Usage column, notch peek,
+and menu-bar status. A real zero balance remains visible and distinct from a
+missing or failed reading. `is_available = false` adds an unavailable warning
+without hiding the amount.
+
+DeepSeek does not expose account-wide daily usage through the documented
+API-key endpoint. CodexIsland therefore does not call private dashboard APIs,
+read browser sessions, estimate usage from balance differences, or present a
+daily-usage value. The Cost and Overview pages remain local-log surfaces and do
+not reinterpret wallet balance as spend.
+
+## Jev usage
+
+Add `Jev` in Settings → Providers. Jev is usage-only: CodexIsland reads local
+OpenCode session records whose `providerID` is `jev`, `jev-agent`, `typesafe`,
+or `typesafe-ai`, then shows today's and this month's token totals.
+
+The app does not read Jev or TypeSafe credentials and does not call an account
+quota endpoint. Jev therefore has no remaining percentage, reset countdown,
+quota history, or threshold alert. Its local usage remains available in the
+Usage, Cost, and Overview surfaces when matching OpenCode records exist.
 
 ## Google Antigravity
 
@@ -126,6 +181,9 @@ These are CodexIsland display colors, not claims about official brand palettes.
 | Codex | Sky blue | `#5AA8F0` |
 | Grok | White | `#FFFFFF` |
 | Antigravity | Lilac | `#B69CFF` |
+| MiniMax CN | Orange | `#FF7E46` |
+| DeepSeek | Blue | `#4D6BFE` |
+| Jev | Violet | `#C494FF` |
 
 Antigravity uses a separate hue from Codex so adjacent providers are recognizable
 at a glance. Green, amber, and red remain reserved for status and alerts. Keep

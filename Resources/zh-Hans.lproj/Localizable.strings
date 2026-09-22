@@ -216,6 +216,14 @@
 "Sign in with agy CLI to connect your subscription." = "通过 agy CLI 登录以连接你的订阅。";
 "Open agy CLI to restore your session, then refresh the connection." = "打开 agy CLI 恢复登录状态，然后刷新连接。";
 "Could not read Antigravity usage. Check your agy CLI login, then refresh." = "无法读取 Antigravity 用量。请检查 agy CLI 登录状态，然后刷新。";
+"Set DEEPSEEK_API_KEY or add it to DeepSeek Harness." = "设置 DEEPSEEK_API_KEY，或将其添加到 DeepSeek Harness。";
+"Set DEEPSEEK_API_KEY or add it to DeepSeek Harness, then refresh." = "设置 DEEPSEEK_API_KEY，或将其添加到 DeepSeek Harness，然后刷新连接。";
+"Could not read the DeepSeek wallet balance. Check your API key, then refresh." = "无法读取 DeepSeek 钱包余额。请检查 API Key，然后刷新连接。";
+"Jev usage is read from local session records." = "Jev 使用量来自本地会话记录。";
+"Local usage available" = "已有本地使用量";
+"No local usage records yet" = "暂无本地使用记录";
+"Refresh local usage" = "刷新本地使用量";
+"%@: %d tokens today" = "%@：今天使用 %d 个 token";
 "Checking connection" = "正在检查连接";
 "Signed in" = "已登录";
 "Sign-in required" = "需要登录";
@@ -364,3 +372,14 @@
 "The usage archive changed. Scan again before saving." = "用量存档已更改。请重新扫描后再保存。";
 "A selected recovery source is no longer available. Choose it again, then scan." = "所选恢复来源已不可用。请重新选择后再扫描。";
 "Saved token counts exceed the supported range. Check the recovery files before trying again." = "保存的 token 数量超出了支持范围。请检查恢复文件后重试。";
+
+"Wallet balance" = "钱包余额";
+"Wallet balance unavailable" = "钱包余额不可用";
+"Connect your wallet" = "连接钱包";
+"Add a DeepSeek API key to see your wallet balance." = "添加 DeepSeek API Key 后即可查看钱包余额。";
+"DeepSeek did not report a wallet balance." = "DeepSeek 未返回钱包余额。";
+"Available for DeepSeek API calls." = "可用于 DeepSeek API 调用。";
+"DeepSeek reports that this wallet cannot make API calls." = "DeepSeek 报告此钱包当前无法进行 API 调用。";
+"Open DeepSeek API keys" = "打开 DeepSeek API 密钥页面";
+"%@: wallet balance unavailable" = "%@：钱包余额不可用";
+"%@: wallet balance %@" = "%@：钱包余额 %@";

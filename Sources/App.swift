@@ -26,9 +26,10 @@ struct CodexIslandApp: App {
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
-    var island: IslandWindowController?
+    private var presentation: DisplayPresentationController?
     private var settingsShortcutMonitor: Any?
     private var weeklyCardLaunchObservation: AnyCancellable?
+    private var initialConnectionRetryTask: Task<Void, Never>?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? ""
@@ -45,8 +46,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         PricingCatalog.loadFromDisk()
 
         NSApp.setActivationPolicy(.accessory)
-        island = IslandWindowController()
-        island?.show()
+        presentation = DisplayPresentationController()
 
         // Route Cmd+, to our hand-rolled Settings window. Without this, the
         // inert `Settings { EmptyView() }` scene below claims the shortcut and
@@ -68,6 +68,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         CostStore.shared.startAutoRefresh()
         PricingCatalog.startAutoRefresh()
         CurrencyStore.shared.startAutoRefresh()
+        initialConnectionRetryTask = Task { @MainActor [weak self] in
+            try? await Task.sleep(nanoseconds: 15_000_000_000)
+            guard !Task.isCancelled else { return }
+            ProviderConnectionStore.shared.retrySelectedIfUnavailable()
+            self?.initialConnectionRetryTask = nil
+        }
 
         if offerWeeklyCard {
             let costs = CostStore.shared

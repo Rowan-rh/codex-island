@@ -31,34 +31,61 @@ final class ProviderConnectionStore: ObservableObject {
     }
 
     func snapshot(_ provider: IslandProvider) -> ConnectedUsage {
-        snapshots[provider] ?? ConnectedUsage(message: provider == .grok
-            ? "Sign in with Grok CLI to connect your subscription."
-            : "Sign in with agy CLI to connect your subscription.", needsLogin: true)
+        snapshots[provider] ?? ConnectedUsage(message: {
+            switch provider {
+            case .grok: return "Sign in with Grok CLI to connect your subscription."
+            case .minimaxCN: return "Set MINIMAX_CN_API_KEY or sign in with mmx CLI."
+            case .deepseek: return "Set DEEPSEEK_API_KEY or add it to DeepSeek Harness."
+            case .jev: return "Jev usage is read from local session records."
+            default: return "Sign in with agy CLI to connect your subscription."
+            }
+        }(), needsLogin: provider != .jev)
     }
 
     func limits(_ provider: IslandProvider) -> [ConnectedLimit] {
+        guard provider.usesConnectedQuota else { return [] }
         let usage = snapshot(provider)
         return ProviderQuotaPreferences.resolve(usage,
             selection: ProviderQuotaPreferences.shared.selection(for: usage.storageScope(provider: provider)))
     }
 
     func primary(_ provider: IslandProvider) -> ConnectedLimit? {
+        guard provider.usesConnectedQuota else { return nil }
         let usage = snapshot(provider)
         return ProviderQuotaPreferences.primary(limits(provider),
             selection: ProviderQuotaPreferences.shared.selection(for: usage.storageScope(provider: provider)))
     }
 
     func refreshSelected() {
-        for provider in ProviderVisibilityStore.shared.selected where !provider.usesLegacyUsage {
+        for provider in ProviderVisibilityStore.shared.selected where provider.usesConnectedQuota {
             refresh(provider)
         }
     }
 
+    /// A launch can race network startup or the CLI's config becoming
+    /// readable. Give a provider with no reading one delayed retry without
+    /// weakening the normal five-minute polling guard.
+    func retrySelectedIfUnavailable() {
+        for provider in ProviderVisibilityStore.shared.selected where provider.usesConnectedQuota {
+            let current = snapshot(provider)
+            guard !loading.contains(provider), current.updatedAt == nil, !current.needsLogin else { continue }
+            refresh(provider, manually: true)
+        }
+    }
+
     func refresh(_ provider: IslandProvider, manually: Bool = false) {
-        guard !provider.usesLegacyUsage, !loading.contains(provider) else { return }
+        guard provider.usesConnectedQuota, !loading.contains(provider) else { return }
         if let until = cooldown[provider], until > Date() { return }
         if !manually, let previous = lastAttempt[provider], Date().timeIntervalSince(previous) < 300 { return }
         if AppEnvironment.isDemo {
+            if provider == .deepseek {
+                snapshots[provider] = ConnectedUsage(
+                    balances: [ConnectedBalance(currency: "CNY", total: 86.42, granted: 6.42, toppedUp: 80)],
+                    balanceAvailable: true,
+                    updatedAt: Date()
+                )
+                return
+            }
             snapshots[provider] = ConnectedUsage(limits: [
                 ConnectedLimit(id: "demo", label: provider == .grok ? "Credits" : "5h",
                     usedFraction: 0.38, resetAt: Date().addingTimeInterval(7200),
@@ -88,10 +115,17 @@ final class ProviderConnectionStore: ObservableObject {
                 }
             }
             do {
-                let fetched = try await ProviderSessionRecovery.fetch {
-                    try await (provider == .grok ? GrokConnection.fetch() : AntigravityConnection.fetch())
-                } renew: {
-                    try await ProviderSessionRecovery.renew(provider == .grok ? "grok" : "agy")
+                let fetched: ConnectedUsage
+                if provider == .grok {
+                    fetched = try await ProviderSessionRecovery.fetch(operation: GrokConnection.fetch,
+                        renew: { try await ProviderSessionRecovery.renew("grok") })
+                } else if provider == .minimaxCN {
+                    fetched = try await MiniMaxConnection.fetch()
+                } else if provider == .deepseek {
+                    fetched = try await DeepSeekConnection.fetch()
+                } else {
+                    fetched = try await ProviderSessionRecovery.fetch(operation: AntigravityConnection.fetch,
+                        renew: { try await ProviderSessionRecovery.renew("agy") })
                 }
                 guard !Task.isCancelled else { return }
                 snapshots[provider] = fetched
@@ -109,14 +143,26 @@ final class ProviderConnectionStore: ObservableObject {
                 case ProviderConnectionError.signIn, ProviderConnectionError.expired,
                      ProviderConnectionError.http(401):
                     needsLogin = true
-                    message = provider == .grok ? "Run grok login, then refresh the connection."
-                        : "Open agy CLI to restore your session, then refresh the connection."
+                    message = {
+                        switch provider {
+                        case .grok: return "Run grok login, then refresh the connection."
+                        case .minimaxCN: return "Run mmx auth login --recommend --region=cn, then refresh the connection."
+                        case .deepseek: return "Set DEEPSEEK_API_KEY or add it to DeepSeek Harness, then refresh."
+                        default: return "Open agy CLI to restore your session, then refresh the connection."
+                        }
+                    }()
                 case ProviderConnectionError.http(429):
                     cooldown[provider] = Date().addingTimeInterval(900)
                     message = "Rate limited. Retrying in 15 minutes."
                 default:
-                    message = provider == .grok ? "Could not read Grok usage. Try refreshing the connection."
-                        : "Could not read Antigravity usage. Check your agy CLI login, then refresh."
+                    message = {
+                        switch provider {
+                        case .grok: return "Could not read Grok usage. Try refreshing the connection."
+                        case .minimaxCN: return "Could not read MiniMax CN usage. Check your Token Plan key, then refresh."
+                        case .deepseek: return "Could not read the DeepSeek wallet balance. Check your API key, then refresh."
+                        default: return "Could not read Antigravity usage. Check your agy CLI login, then refresh."
+                        }
+                    }()
                 }
                 snapshots[provider] = ConnectedUsage(message: message, needsLogin: needsLogin)
             }
@@ -124,24 +170,52 @@ final class ProviderConnectionStore: ObservableObject {
     }
 
     func connect(_ provider: IslandProvider) {
-        guard provider == .grok || provider == .antigravity else { return }
-        let command = provider == .grok ? "grok" : "agy"
+        guard provider == .grok || provider == .antigravity || provider == .minimaxCN
+                || provider == .deepseek else { return }
+        if provider == .deepseek {
+            if let url = URL(string: "https://platform.deepseek.com/api_keys") { NSWorkspace.shared.open(url) }
+            return
+        }
+        let command: String = {
+            switch provider {
+            case .grok: return "grok"
+            case .minimaxCN: return "mmx"
+            default: return "agy"
+            }
+        }()
         guard let binary = ProviderSessionRecovery.binary(command) else {
-            let installURL = provider == .grok ? "https://grok.com/build" : "https://antigravity.google/docs/cli/install/"
+            let installURL: String = {
+                switch provider {
+                case .grok: return "https://grok.com/build"
+                case .minimaxCN: return "https://platform.minimaxi.com/subscribe/token-plan"
+                default: return "https://antigravity.google/docs/cli/install/"
+                }
+            }()
             if let url = URL(string: installURL) { NSWorkspace.shared.open(url) }
             return
         }
         let file = FileManager.default.temporaryDirectory.appendingPathComponent("CodexIsland-\(command)-\(UUID().uuidString).command")
         let quoted = "'" + binary.replacingOccurrences(of: "'", with: "'\\''") + "'"
         do {
-            let arguments = provider == .grok ? " login" : ""
+            let arguments: String = {
+                switch provider {
+                case .grok: return " login"
+                case .minimaxCN: return " auth login --recommend --region=cn"
+                default: return ""
+                }
+            }()
             try ("#!/bin/sh\n" + quoted + arguments + "\n").write(to: file, atomically: true, encoding: .utf8)
             try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: file.path)
             NSWorkspace.shared.open(file)
         } catch {
-            snapshots[provider] = ConnectedUsage(message: provider == .grok
-                ? "Run grok login in Terminal, then refresh the connection."
-                : "Open agy CLI to restore your session, then refresh the connection.", needsLogin: true)
+            let message: String = {
+                switch provider {
+                case .grok: return "Run grok login in Terminal, then refresh the connection."
+                case .minimaxCN: return "Run mmx auth login --recommend --region=cn, then refresh the connection."
+                default: return "Open agy CLI to restore your session, then refresh the connection."
+                }
+            }()
+            snapshots[provider] = ConnectedUsage(message: message, needsLogin: true)
         }
     }
 }

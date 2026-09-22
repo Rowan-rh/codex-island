@@ -15,11 +15,10 @@
 > Your AI usage limits, living in your notch.
 
 CodexIsland is a native macOS overlay that turns the MacBook notch into a
-Dynamic-Island-style live activity for Claude Code and Codex usage limits. It
-sits quietly over the notch, peeks on hover with the 5-hour headline, and
-expands on click to show both providers' 5-hour and weekly windows with reset
-timing, chart controls, local-log cost estimates, and a year-at-a-glance usage
-history.
+Dynamic-Island-style live activity for AI usage limits and account status. It
+sits quietly over the notch, peeks on hover, and expands on click to show
+provider limits or wallet balance alongside chart controls, local-log cost
+estimates, and a year-at-a-glance usage history.
 
 https://github.com/user-attachments/assets/195beeff-0f70-4d6b-8f3d-9f31d9c0b989
 
@@ -32,10 +31,15 @@ providers' own usage endpoints.
 
 - **Two providers, four windows.** Claude 5h + 7d and Codex 5h + 7d live in
   one panel.
+- **MiniMax CN Token Plan.** Add `minimax-cn` from Settings → Providers to
+  monitor the China Token Plan's 5-hour and weekly quota windows.
+- **DeepSeek wallet.** Add DeepSeek to show the current API wallet balance
+  reported by DeepSeek's official balance endpoint.
+- **Jev usage.** Add Jev to show local Jev/TypeSafe usage recorded by OpenCode.
 - **Notch-native overlay.** The compact state is a black pill aligned to the
   physical notch, drawn with continuous (squircle) corners that match the
-  hardware. On non-notched displays it falls back to a configurable menu-bar
-  pill.
+  hardware. Automatic placement uses the notch on the built-in display and a
+  menu-bar icon when an external display is connected.
 - **Hover to peek.** The silhouette widens just enough to show each visible
   provider's 5-hour percentage and reset headline, or keep those headlines
   visible at rest with **Always show usage**.
@@ -95,8 +99,11 @@ providers' own usage endpoints.
   custom, resizable settings window with General, Display, and Providers tabs.
 - **English and Simplified Chinese.** Follow the macOS language automatically
   or choose a language in Settings.
+- **Display placement.** Choose Automatic, Notch, or Menu Bar. Automatic uses
+  the built-in Mac notch and switches to a menu-bar icon when an external
+  display is connected; clicking the icon opens all visible usage information.
 - **Display selection.** Auto-pick a notched display or pin the island to a
-  specific connected display. Non-notched displays offer compact and
+  specific connected display. Non-notched notch overlays offer compact and
   notch-style widths.
 - **Configurable safe polling.** Choose 5m, 15m, or 30m. The app does not offer
   sub-5-minute polling because Anthropic rate-limits the usage endpoint
@@ -182,6 +189,31 @@ For Claude:
   token.
 - If none work, the panel shows `auth required — run claude`.
 
+For MiniMax CN:
+
+- Install and sign in with the official MiniMax CLI (`mmx auth login --recommend --region=cn`),
+  or provide `MINIMAX_CN_API_KEY`.
+- CodexIsland reads the CLI's `~/.mmx/config.json` (or `MMX_CONFIG_DIR`) and
+  calls MiniMax's Token Plan quota endpoint read-only. Use a MiniMax CN
+  Subscription Key, not a regular pay-as-you-go API key.
+
+For DeepSeek:
+
+- Provide `DEEPSEEK_API_KEY`, or save it through DeepSeek Harness.
+- CodexIsland reads the key from the environment or the `refs` section of
+  `$DSH_HOME/.credentials.yaml` (normally `~/.dsh/.credentials.yaml`) and calls
+  `https://api.deepseek.com/user/balance` read-only.
+- The app shows wallet balance only; it does not use private dashboard APIs or
+  read browser sessions.
+
+For Jev:
+
+- CodexIsland reads local OpenCode session records whose provider is Jev or
+  TypeSafe and shows today's and this month's token usage.
+- Jev has no account-quota surface in the app: no remaining percentage,
+  reset countdown, or threshold alert is inferred.
+- Jev and TypeSafe credentials are not read, refreshed, or sent anywhere.
+
 The first fetch starts at app launch so the panel usually has values ready by
 the first peek. Opening Settings also triggers a fresh fetch.
 
@@ -208,14 +240,16 @@ memory so showing it again does not require a reset.
 ## Settings
 
 Settings is a custom `NSWindow`, not the system Settings scene. The app still
-runs as an accessory app with no Dock icon and no menu bar.
+runs as an accessory app with no Dock icon. In Menu Bar mode it exposes a
+status-bar icon instead of the notch overlay.
 
 - **General:** Launch at Login, 5m/15m/30m refresh interval, app language,
   Always show usage, Low Power Mode, configurable limit alerts, and Sparkle
   update controls.
-- **Display:** used/remaining percentages, Usage and Cost visualization styles,
-  target display, and island width on non-notched screens.
-- **Providers:** Claude/Codex visibility and status, token-counting mode, and a
+- **Display:** automatic/notch/menu-bar placement, used/remaining percentages,
+  Usage and Cost visualization styles, target display, and island width on
+  non-notched notch overlays.
+- **Providers:** Claude/Codex/Grok/Antigravity/MiniMax CN/DeepSeek/Jev visibility and status, token-counting mode, and a
   manual refresh for local cost data. Cost estimates can be displayed in USD,
   CNY, EUR, GBP, JPY, KRW, CAD, AUD, or CHF. Conversion uses a cached daily
   reference rate; the underlying model prices and cost calculations remain in
@@ -320,8 +354,10 @@ Native app behavior:
 - Codex tokens are read locally from `~/.codex/auth.json`.
 - Claude tokens are read from `CLAUDE_CODE_OAUTH_TOKEN`, Claude's credentials
   file, or the macOS Keychain. CodexIsland never refreshes or writes them.
-- Tokens leave the machine only as `Authorization` headers to `chatgpt.com` and
-  `api.anthropic.com`.
+- DeepSeek API keys are read from `DEEPSEEK_API_KEY` or the DeepSeek Harness
+  credential file. CodexIsland never writes that file.
+- Tokens leave the machine only as `Authorization` headers to their providers,
+  including `chatgpt.com`, `api.anthropic.com`, and `api.deepseek.com`.
 - The Cost screen reads local Claude Code session logs from
   `~/.claude/projects/**/*.jsonl` (and `~/.config/claude/...`, plus any path
   in `CLAUDE_CONFIG_DIR`), Codex session logs from `~/.codex/sessions/`, and
@@ -337,9 +373,8 @@ Native app behavior:
 The visitor badge at the top of this README is an external `hits.sh` image that
 counts badge requests. It is not bundled with or contacted by the native app.
 
-The network surface is concentrated in
-[`Sources/Usage/UsageFetcher.swift`](Sources/Usage/UsageFetcher.swift). The
-local log readers live in [`Sources/Cost/`](Sources/Cost/).
+Provider network adapters live in [`Sources/Usage/`](Sources/Usage/). The local
+log readers live in [`Sources/Cost/`](Sources/Cost/).
 
 ## Troubleshooting
 
@@ -370,13 +405,14 @@ Anthropic rate-limits `/api/oauth/usage` aggressively at the account level. The
 app exposes 5m, 15m, and 30m only.
 
 **Does it work without a notch?**
-Yes. It falls back to a compact menu-bar pill; Settings can switch it to the
-wider notch-style spacing.
+Yes. It uses a menu-bar icon; click the icon to open the full panel. If you
+force the Notch placement, Settings can switch between compact and wider
+notch-style spacing on non-notched displays.
 
 **Does it support multiple monitors?**
-Yes, with one island at a time. Auto mode prefers a notched display, then the
-main display. You can also pin the island to a connected display in Settings;
-if that display is unplugged, CodexIsland falls back to Auto.
+Yes. Automatic placement uses the built-in Mac notch without an external
+display and switches to a menu-bar icon when one is connected. The target
+display can still be pinned in Settings for the notch overlay.
 
 **Will the usage endpoints break?**
 Probably at some point. Both provider endpoints are undocumented. If the panel
@@ -393,8 +429,9 @@ Settings, and use Settings -> Quit to exit.
 - Claude and Codex usage endpoints are undocumented.
 - Sparkline history contains only readings CodexIsland records while it is
   running; providers do not expose historical usage series.
-- Multi-monitor setups use one island, pinned to or auto-selected for one
-  display at a time.
+- Multi-monitor setups use the built-in notch automatically and a menu-bar
+  icon when an external display is connected; Notch mode can pin one overlay
+  to a selected display.
 - Accessibility is partial: VoiceOver labels exist, but a high-contrast variant
   is not implemented yet.
 

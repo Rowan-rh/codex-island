@@ -16,6 +16,12 @@ enum IslandColor {
     // App identity tint: separates Antigravity from Codex blue and status colors.
     static let antigravity = Color(red: 182/255, green: 156/255, blue: 255/255)
 
+    static let minimaxCN = Color(red: 255/255, green: 126/255, blue: 70/255)
+
+    static let deepseek = Color(red: 77/255, green: 107/255, blue: 254/255)
+
+    static let jev = Color(red: 196/255, green: 148/255, blue: 255/255)
+
     /// #3DD68C — live status dot. Sits next to cobalt without clashing.
     static let liveTeal = Color(red: 61/255, green: 214/255, blue: 140/255)
 
