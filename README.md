@@ -33,8 +33,10 @@ providers' own usage endpoints.
   one panel.
 - **MiniMax CN Token Plan.** Add `minimax-cn` from Settings → Providers to
   monitor the China Token Plan's 5-hour and weekly quota windows.
-- **DeepSeek wallet.** Add DeepSeek to show the current API wallet balance
-  reported by DeepSeek's official balance endpoint.
+- **DeepSeek wallet and local usage.** Add DeepSeek to show the current API
+  wallet balance reported by its official balance endpoint. OpenCode session
+  tokens recorded with `providerID: "deepseek"` also appear in Cost and Overview;
+  local token history remains separate from the wallet balance.
 - **Jev usage.** Add Jev to show local Jev/TypeSafe usage recorded by OpenCode.
 - **Notch-native overlay.** The compact state is a black pill aligned to the
   physical notch, drawn with continuous (squircle) corners that match the

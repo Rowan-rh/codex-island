@@ -84,8 +84,9 @@ without hiding the amount.
 DeepSeek does not expose account-wide daily usage through the documented
 API-key endpoint. CodexIsland therefore does not call private dashboard APIs,
 read browser sessions, estimate usage from balance differences, or present a
-daily-usage value. The Cost and Overview pages remain local-log surfaces and do
-not reinterpret wallet balance as spend.
+daily-usage value from the wallet. If OpenCode has local session records with
+`providerID: "deepseek"`, their recorded token counts appear in Cost and Overview
+as local usage. This log-based history is separate from the wallet balance.
 
 ## Jev usage
 

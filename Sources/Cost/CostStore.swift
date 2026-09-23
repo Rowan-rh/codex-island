@@ -94,18 +94,26 @@ final class CostStore: ObservableObject {
         }
         // Only scan OpenCode when at least one provider will consume
         // the result; avoids wasted I/O when all consumers are already loading.
-        let localProviders: [IslandProvider] = [.minimaxCN, .jev]
+        let localProviders: [IslandProvider] = [.minimaxCN, .deepseek, .jev]
         let openCodeTask: Task<UsageLedger.Snapshot, Never>?
         if !claudeLoading || !codexLoading || localProviders.contains(where: { !connectedLoading.contains($0) }) {
             openCodeTask = Task.detached(priority: .userInitiated) {
                 let observedAt = Date()
                 let lookbackDays = LocalCostRefresh.openCodeLookbackDays(
-                    hasCompletedScan: UsageLedger.shared.hasCompletedScan(source: .openCode)
+                    hasCompletedScan: UsageLedger.shared.hasCompletedScan(source: .openCode),
+                    providerMappingVersion: UserDefaults.standard.integer(
+                        forKey: LocalCostRefresh.openCodeProviderMappingVersionKey)
                 )
                 let scan = OpenCodeLogReader.scanResult(lookbackDays: lookbackDays)
-                return UsageLedger.shared.retain(scan.events, source: .openCode,
-                                                 observedAt: observedAt,
-                                                 markScanComplete: scan.completed)
+                let saved = UsageLedger.shared.retain(scan.events, source: .openCode,
+                                                      observedAt: observedAt,
+                                                      markScanComplete: scan.completed)
+                if LocalCostRefresh.canCompleteOpenCodeProviderBackfill(
+                    scanCompleted: scan.completed, saveError: saved.saveError) {
+                    UserDefaults.standard.set(LocalCostRefresh.openCodeProviderMappingVersion,
+                                              forKey: LocalCostRefresh.openCodeProviderMappingVersionKey)
+                }
+                return saved
             }
         } else {
             openCodeTask = nil

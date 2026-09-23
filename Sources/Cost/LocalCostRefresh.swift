@@ -1,8 +1,18 @@
 import Foundation
 
 enum LocalCostRefresh {
-    static func openCodeLookbackDays(hasCompletedScan: Bool) -> Int? {
-        hasCompletedScan ? 30 : nil
+    static let openCodeProviderMappingVersionKey = "MacIsland.openCodeProviderMappingVersion"
+    static let openCodeProviderMappingVersion = 1
+
+    static func openCodeLookbackDays(
+        hasCompletedScan: Bool,
+        providerMappingVersion: Int = openCodeProviderMappingVersion
+    ) -> Int? {
+        hasCompletedScan && providerMappingVersion >= openCodeProviderMappingVersion ? 30 : nil
+    }
+
+    static func canCompleteOpenCodeProviderBackfill(scanCompleted: Bool, saveError: String?) -> Bool {
+        scanCompleted && saveError == nil
     }
 
     static func gather<Local, Shared>(
