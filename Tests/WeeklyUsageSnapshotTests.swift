@@ -15,6 +15,8 @@ struct WeeklyUsageSnapshotTests {
     }
 
     static func main() throws {
+        // Labels follow the app language; pin English so results don't depend on the host locale.
+        UserDefaults.standard.register(defaults: [AppLanguageResolver.key: AppLanguage.en.rawValue])
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = TimeZone(identifier: "America/Chicago") ?? .current
         calendar.firstWeekday = 1
@@ -89,8 +91,8 @@ struct WeeklyUsageSnapshotTests {
             && thirtyDayBounds.durationLabel == "30 days",
                "headline dates and chart duration describe the same thirty-day window")
         expect(thirtyDayBounds.shareText().contains("30 days with AI")
-            && thirtyDayBounds.shareText().contains("2 active days out of 30")
-            && thirtyDayBounds.shareText(metric: .apiValue).contains("in 30 days"),
+            && thirtyDayBounds.shareText().contains("2 active days in 30 days")
+            && thirtyDayBounds.shareText(metric: .apiValue).contains("during 30 days"),
                "both sharing captions identify the rolling thirty-day period")
         expect(year.start == date("2026-01-01 00:00") && year.end == date("2026-09-11 00:00"),
                "this year begins January first and ends after today")
@@ -118,7 +120,8 @@ struct WeeklyUsageSnapshotTests {
         expect(quarter.shareText().contains("Three months with AI")
             && quarter.shareText(metric: .apiValue).contains("over the last 3 months"),
                "both captions identify the three-month period")
-        expect(WeeklyValueMilestone.earned(dollars: 1000)?.headline(for: .lastThreeMonths) == "Four figures. 3 months.",
+        expect(WeeklyValueMilestone.earned(dollars: 1000)?.headline(for: .lastThreeMonths)
+            == "Weekly milestone.fourFigures.lastThreeMonths",
                "the earned money headline follows the three-month period")
         let leap = WeeklyUsageSnapshot.make(buckets: [:], period: .thisYear,
                                             now: date("2024-03-01 12:00"), calendar: calendar)
@@ -168,10 +171,10 @@ struct WeeklyUsageSnapshotTests {
             expect(!card.shareText().contains("My week") && !card.shareText(metric: .apiValue).contains("in 7 days"),
                    "longer-period captions never describe a seven-day result")
         }
-        expect(monthCard.shareText().contains("4 active days out of 30") && yearCard.shareText().contains("My year with AI"),
+        expect(monthCard.shareText().contains("4 active days in 30 days") && yearCard.shareText().contains("My year with AI"),
                "captions identify the selected range and active-day denominator")
-        expect(WeeklyValueMilestone.earned(dollars: 1000)?.headline(for: .lastThirtyDays) == "Four figures. 30 days."
-            && WeeklyValueMilestone.earned(dollars: 1000)?.headline(for: .allTime) == "Four-figure total.",
+        expect(WeeklyValueMilestone.earned(dollars: 1000)?.headline(for: .lastThirtyDays) == "Weekly milestone.fourFigures.lastThirtyDays"
+            && WeeklyValueMilestone.earned(dollars: 1000)?.headline(for: .allTime) == "Weekly milestone.fourFigures.allTime",
                "earned money headlines identify the selected period")
         let historicalEvent = TokenEvent(provider: .codex, timestamp: date("2024-02-29 12:00"), model: "gpt-5",
                                          inputTokens: 10, outputTokens: 2, cacheCreationTokens: 3, cacheReadTokens: 5)
@@ -228,7 +231,7 @@ struct WeeklyUsageSnapshotTests {
         expect(WeeklyUsageSnapshot.compactTokens(999_999).unit == "M", "rounding promotes suffix instead of 1000K")
         expect(WeeklyUsageSnapshot.compactTokens(1_250_000_000).value == "1.3", "billions retain meaningful precision")
         let demo = WeeklyUsageSnapshot.make(buckets: buckets, now: now, calendar: calendar, isDemo: true, hasPartialRecords: true)
-        expect(demo.shareText().contains("Demo week") && demo.shareText().contains("Partial local records"),
+        expect(demo.shareText().hasPrefix("Demo: ") && demo.shareText().contains("Some local records are missing."),
                "demo and incomplete sources remain labeled in shared copy")
         expect(summary.shareText().contains("Includes cache tokens") && summary.shareText().contains("https://codexisland.com"),
                "share caption defines the metric and provides a make-your-own path")
@@ -264,31 +267,15 @@ struct WeeklyUsageSnapshotTests {
                "provider filter changes dollars and tokens together")
         expect(priced.valueMilestone?.label == "$1K" && pricedSelection.valueMilestone == nil,
                "milestone reflects only the providers included in the card")
-        expect(priced.tier(for: .apiValue) == .black && priced.tier(for: .tokens) == .white,
-               "the spotlight selects independent money and token color thresholds")
-        expect(pricedSelection.tier(for: .apiValue) == .white, "provider filtering recalculates the earned color")
-        expect(priced.shareText(metric: .apiValue).contains("Black card")
-            && priced.shareText(metric: .tokens).contains("White card"),
-               "shared captions identify the same earned color as the card")
         for metric in WeeklyCardMetric.allCases {
-            for tier in [WeeklyCardTier.black, .blue] {
-                let minimum = tier.minimum(for: metric)
-                let step = metric == .apiValue ? 0.001 : 1.0
-                expect(WeeklyCardTier.earned(value: minimum, metric: metric) == tier
-                    && WeeklyCardTier.earned(value: minimum - step, metric: metric) != tier,
-                       "color tiers require the actual money or token threshold")
-            }
-            expect([Double.nan, .infinity, -1, 0].allSatisfy { WeeklyCardTier.earned(value: $0, metric: metric) == .white },
-                   "missing or invalid usage cannot unlock a special color")
+            let caption = priced.shareText(metric: metric)
+            expect(!["White card", "Black card", "Blue card"].contains(where: caption.contains) && caption.contains("Claude"),
+                   "shared captions list providers without a card color or tier name")
         }
-        expect(WeeklyCardTier.black.minimum(for: .apiValue) == 1000 && WeeklyCardTier.blue.minimum(for: .apiValue) == 10_000,
-               "money colors unlock at one thousand and ten thousand USD")
-        expect(WeeklyCardTier.black.minimum(for: .tokens) == 100_000_000 && WeeklyCardTier.blue.minimum(for: .tokens) == 1_000_000_000,
-               "token colors unlock at one hundred million and one billion")
-        let beforeBlack = WeeklyUsageSnapshot.compactTokens(99_999_999)
-        let beforeBlue = WeeklyUsageSnapshot.compactTokens(999_999_999)
-        expect(beforeBlack.value + beforeBlack.unit == "99.9M" && beforeBlue.value + beforeBlue.unit == "999.9M",
-               "compact token labels never imply a higher color tier through rounding")
+        let nearHundredMillion = WeeklyUsageSnapshot.compactTokens(99_960_000)
+        let nearMillion = WeeklyUsageSnapshot.compactTokens(999_999)
+        expect(nearHundredMillion.value + nearHundredMillion.unit == "100M" && nearMillion.unit == "M",
+               "compact token labels use ordinary rounding")
         for (threshold, label) in [(100.0, "$100"), (1000, "$1K"), (10_000, "$10K"), (100_000, "$100K"),
                                    (1_000_000, "$1M"), (10_000_000, "$10M"), (100_000_000, "$100M"), (1_000_000_000, "$1B")] {
             expect(WeeklyValueMilestone.earned(dollars: threshold)?.label == label
@@ -297,7 +284,8 @@ struct WeeklyUsageSnapshotTests {
         }
         expect([Double.nan, .infinity, -1, 0, 99.99].allSatisfy { WeeklyValueMilestone.earned(dollars: $0) == nil },
                "invalid prices and amounts below the first threshold never earn a badge")
-        expect(priced.shareText(metric: .apiValue).hasPrefix("Four-figure week. My AI usage: $1,280.06 at API rates in 7 days."),
+        expect(priced.shareText(metric: .apiValue).hasPrefix(
+            "Weekly milestone.fourFigures.lastSevenDays My AI usage: $1,280.06 at API rates during 7 days."),
                "caption leads with the same earned title and amount as the image")
         var partialBuckets = pricedBuckets
         partialBuckets[.grok] = [DailyTokenBucket(dayStart: date("2026-09-06 00:00"), tokens: 500, billableTokens: 500,
@@ -306,8 +294,6 @@ struct WeeklyUsageSnapshotTests {
         expect(partial.hasPartialPricing && partial.valueSuffix == "+" && partial.hasPricedUsage,
                "unpriced models produce an explicit lower-bound estimate")
         expect(partial.valueMilestone?.label == "$1K", "unpriced tokens cannot inflate the earned milestone")
-        expect(partial.tier(for: .apiValue) == .black && summary.tier(for: .apiValue) == .white,
-               "unpriced tokens and legacy caches cannot inflate the money color tier")
         expect(partial.shareText(metric: .apiValue).contains("$1,280.06+")
             && partial.shareText(metric: .apiValue).contains("not a bill"),
                "money caption preserves both partial-pricing and estimate qualifiers")

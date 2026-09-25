@@ -19,7 +19,6 @@ final class MenuBarController: NSObject, NSPopoverDelegate {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         statusView = MenuBarStatusView()
         let model = IslandModel(notch: NotchInfo(width: 0, height: 32, hasNotch: true))
-        model.setState(.expanded)
         panelModel = model
         panelController = NSHostingController(rootView: MenuBarPanelView(model: model))
         super.init()
@@ -88,6 +87,7 @@ final class MenuBarController: NSObject, NSPopoverDelegate {
             // The content is kept mounted between openings. Rebuilding the
             // three-page SwiftUI tree on every click made the native popover
             // animation compete with its first layout pass.
+            panelModel.setState(.expanded)
             popover.show(relativeTo: statusView.bounds, of: statusView, preferredEdge: .minY)
             installDismissalMonitors()
         }
@@ -140,6 +140,10 @@ final class MenuBarController: NSObject, NSPopoverDelegate {
     }
 
     func popoverDidClose(_ notification: Notification) {
+        // The mounted-but-closed panel otherwise keeps LiveDot's 30Hz
+        // TimelineView ticking, which also re-snapshots the status item
+        // every frame and starves the main thread.
+        panelModel.setState(.compact)
         if let monitor = dismissalMonitor { NSEvent.removeMonitor(monitor) }
         if let monitor = localDismissalMonitor { NSEvent.removeMonitor(monitor) }
         dismissalMonitor = nil

@@ -6,9 +6,9 @@ struct WeeklyUsageCard: View {
     let format: WeeklyCardFormat
     var signature = ""
     var metric: WeeklyCardMetric = .apiValue
+    var backdrop: WeeklyCardBackdropStyle = .solid
 
-    private var tier: WeeklyCardTier { snapshot.tier(for: metric) }
-    private var theme: WeeklyCardTheme { tier.theme }
+    private let theme = WeeklyCardTheme.midnight
     private var compact: Bool { format == .square }
     private var tokens: (value: String, unit: String) {
         WeeklyUsageSnapshot.compactTokens(snapshot.totalTokens)
@@ -17,7 +17,7 @@ struct WeeklyUsageCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(alignment: .firstTextBaseline) {
-                Text(snapshot.isDemo ? "Demo · \(snapshot.dateLabel)" : snapshot.dateLabel)
+                Text(snapshot.isDemo ? L10n.tr("Demo · %@", snapshot.dateLabel) : snapshot.dateLabel)
                     .lineLimit(1)
                     .layoutPriority(1)
                 Spacer(minLength: 12)
@@ -38,7 +38,7 @@ struct WeeklyUsageCard: View {
 
             providerLegend
             if metric == .apiValue {
-                Text("API-rate estimate, not a bill.")
+                Text(L10n.tr("API-rate estimate, not a bill."))
                     .font(.system(size: 10, weight: .medium))
                     .foregroundStyle(theme.secondary)
                     .padding(.top, compact ? 8 : 12)
@@ -50,9 +50,9 @@ struct WeeklyUsageCard: View {
         .padding(.horizontal, 36)
         .padding(.vertical, format == .story ? 88 : 32)
         .frame(width: format.size.width, height: format.size.height)
-        .background(theme.background)
+        .background(WeeklyCardBackdrop(style: backdrop))
         .foregroundStyle(theme.foreground)
-        .environment(\.colorScheme, theme == .paper ? .light : .dark)
+        .environment(\.colorScheme, .dark)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(snapshot.shareText(metric: metric))
     }
@@ -77,7 +77,7 @@ struct WeeklyUsageCard: View {
                     .fixedSize(horizontal: false, vertical: true)
                     .padding(.top, compact ? 2 : 8)
                 HStack(alignment: .firstTextBaseline) {
-                    Text(snapshot.hasPartialPricing ? "Known API value · USD" : "API value · USD")
+                    Text(L10n.tr(snapshot.hasPartialPricing ? "Known API value · USD" : "API value · USD"))
                         .foregroundStyle(theme.secondary)
                     Spacer(minLength: 8)
                     Text(snapshot.period.valueQualifier)
@@ -97,7 +97,8 @@ struct WeeklyUsageCard: View {
             }
 
             HStack(spacing: 0) {
-                Text(metric == .apiValue ? snapshot.tokenLabel : snapshot.totalTokens == 1 ? "token" : "tokens")
+                Text(metric == .apiValue ? snapshot.tokenLabel
+                    : L10n.tr(snapshot.totalTokens == 1 ? "token" : "tokens"))
                     .foregroundStyle(theme.foreground)
                 Text("  ·  \(snapshot.activityLabel)")
                     .foregroundStyle(theme.secondary)
@@ -152,7 +153,7 @@ struct WeeklyUsageCard: View {
 
     private func providerValue(_ item: WeeklyUsageSnapshot.ProviderTotal) -> String {
         guard metric == .apiValue else { return snapshot.percentLabel(for: item.tokens) }
-        if item.unpricedTokens == item.tokens { return "Unpriced" }
+        if item.unpricedTokens == item.tokens { return L10n.tr("Unpriced") }
         return WeeklyUsageSnapshot.money(item.dollars) + (item.unpricedTokens > 0 ? "+" : "")
     }
 
@@ -196,7 +197,7 @@ private struct WeeklyMilestoneSeal: View {
                 .tracking(-0.5)
                 .lineLimit(1)
                 .minimumScaleFactor(0.75)
-            Text("CLUB")
+            Text(L10n.tr("CLUB"))
                 .font(.system(size: 8, weight: .semibold))
                 .tracking(2.5)
         }
@@ -206,7 +207,7 @@ private struct WeeklyMilestoneSeal: View {
             WeeklySealOutline().stroke(theme.foreground.opacity(0.65), lineWidth: 0.75)
             WeeklySealOutline().stroke(theme.rule, lineWidth: 0.5).padding(4)
         }
-        .accessibilityLabel("\(milestone.label) API value milestone")
+        .accessibilityLabel(L10n.tr("%@ API value milestone", milestone.label))
     }
 }
 
@@ -251,7 +252,7 @@ private struct WeeklyValueFlow: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
-                Text(metric == .apiValue ? "Cumulative API value" : "Cumulative tokens")
+                Text(L10n.tr(metric == .apiValue ? "Cumulative API value" : "Cumulative tokens"))
                 Spacer()
                 Text(snapshot.durationLabel)
             }

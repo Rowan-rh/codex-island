@@ -47,6 +47,9 @@ struct LocalProviderCostTests {
         expect(OpenCodeLogReader.provider(for: "jev")?.rawValue == "jev"
             && OpenCodeLogReader.provider(for: "typesafe")?.rawValue == "jev",
                "maps Jev and TypeSafe OpenCode records")
+        expect(OpenCodeLogReader.provider(for: "minimax") == .minimaxCN
+            && OpenCodeLogReader.provider(for: "deepseek") == .deepseek,
+               "maps MiniMax and DeepSeek OpenCode records")
         let now = ISO8601DateFormatter().date(from: "2026-09-08T18:00:00Z") ?? Date()
         let record = AntigravityLogReader.record(generation: generation(), stepDates: [1: now, 2: now], fallbackID: "fallback")
         expect(record?.event.inputTokens == 1000 && record?.event.cacheReadTokens == 4000, "agy cache and uncached input stay disjoint")

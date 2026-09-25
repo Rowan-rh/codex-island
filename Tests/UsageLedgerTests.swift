@@ -288,6 +288,29 @@ struct UsageLedgerTests {
                                              historicalDays: [historicalDay])
         expect(clockSafe.dailyTokens.reduce(0) { $0 + $1.tokens } == 1000,
                "excluded future events cannot suppress a recovered aggregate")
+        let attributionLedger = UsageLedger(url: root.appendingPathComponent("attribution.sqlite3"))
+        let viaClaudeCode = TokenEvent(provider: .claude, timestamp: now, model: "MiniMax-M3",
+                                       inputTokens: 100, outputTokens: 20, cacheCreationTokens: 30,
+                                       cacheReadTokens: 400, recordID: "via-claude-code")
+        let attributed = attributionLedger.retain([viaClaudeCode, event("native")], source: .claude, now: now).events
+        expect(attributed.filter { $0.provider == .minimaxCN }.map(\.recordingProvider) == [.claude]
+               && attributed.filter { $0.provider == .claude }.count == 1,
+               "a MiniMax model logged by Claude Code is credited to MiniMax")
+        expect(attributionLedger.retain(attributed, source: .claude, now: now).events.count == 2,
+               "re-saving attributed events keeps their ledger identity")
+        let openCodeMiniMax = TokenEvent(provider: .jev, timestamp: now, model: "MiniMax-M3",
+                                         inputTokens: 1, outputTokens: 1, cacheCreationTokens: 0, cacheReadTokens: 0)
+        expect(openCodeMiniMax.attributedByModel().provider == .jev,
+               "an explicit OpenCode provider is not overridden by the model name")
+        let splitDay = [event("split-claude", date: start.addingTimeInterval(3600)),
+                        TokenEvent(provider: .claude, timestamp: start.addingTimeInterval(3600), model: "MiniMax-M3",
+                                   inputTokens: 100, outputTokens: 20, cacheCreationTokens: 30, cacheReadTokens: 400,
+                                   recordID: "split-minimax").attributedByModel()]
+        let claudeOnly = CostSummary.summarize(events: splitDay.filter { $0.provider == .claude }, now: historicalNow,
+                                               includeAllHistory: true, historicalDays: [historicalDay],
+                                               recordedEvents: splitDay)
+        expect(claudeOnly.dailyTokens.reduce(0) { $0 + $1.tokens } == 550,
+               "re-attributed calls still count toward the recording tool's recovered day")
         print("PASS: \(checks) usage-ledger checks")
     }
 }

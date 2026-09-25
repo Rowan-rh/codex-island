@@ -22,33 +22,14 @@ final class WeeklyCardHistoryStore: ObservableObject {
                 let openCode = UsageLedger.shared.retain(openCodeScan.events,
                                                         source: .openCode, now: now, observedAt: now,
                                                         markScanComplete: openCodeScan.completed)
-                var buckets: [IslandProvider: [DailyTokenBucket]] = [:]
                 var partial = Set<IslandProvider>()
-                var saveErrors: [IslandProvider: String] = [:]
                 let claude = UsageLedger.shared.retain(ClaudeLogReader.scan(lookbackDays: nil),
                                                        source: .claude, now: now, observedAt: now)
                 let codex = UsageLedger.shared.retain(CodexLogReader.scan(lookbackDays: nil),
                                                       source: .codex, now: now, observedAt: now)
-                buckets[.claude] = CostSummary.summarize(
-                    events: claude.events + openCode.events.filter { $0.provider == .claude },
-                    now: now, includeAllHistory: true, historicalDays: claude.historicalDays
-                ).dailyTokens
-                buckets[.codex] = CostSummary.summarize(
-                    events: codex.events + openCode.events.filter { $0.provider == .codex },
-                    now: now, includeAllHistory: true, historicalDays: codex.historicalDays
-                ).dailyTokens
-                saveErrors[.claude] = claude.saveError ?? openCode.saveError
-                saveErrors[.codex] = codex.saveError ?? openCode.saveError
-                buckets[.minimaxCN] = CostSummary.summarize(
-                    events: openCode.events.filter { $0.provider == .minimaxCN },
-                    now: now, includeAllHistory: true, historicalDays: openCode.historicalDays
-                ).dailyTokens
-                saveErrors[.minimaxCN] = openCode.saveError
-                buckets[.jev] = CostSummary.summarize(
-                    events: openCode.events.filter { $0.provider == .jev },
-                    now: now, includeAllHistory: true, historicalDays: openCode.historicalDays
-                ).dailyTokens
-                saveErrors[.jev] = openCode.saveError
+                var sources: [(snapshot: UsageLedger.Snapshot, owner: TokenEvent.Provider?)] = [
+                    (claude, .claude), (codex, .codex), (openCode, nil)
+                ]
                 for provider in [IslandProvider.antigravity, .grok] {
                     let scan = provider == .antigravity
                         ? AntigravityLogReader.scan(lookbackDays: nil, now: now)
@@ -56,10 +37,28 @@ final class WeeklyCardHistoryStore: ObservableObject {
                     let saved = UsageLedger.shared.retain(scan.events,
                                                           source: provider == .antigravity ? .antigravity : .grok,
                                                           now: now, observedAt: now)
-                    buckets[provider] = CostSummary.summarize(events: saved.events, now: now, includeAllHistory: true,
-                                                            historicalDays: saved.historicalDays).dailyTokens
-                    saveErrors[provider] = saved.saveError
+                    sources.append((saved, provider.costProvider))
                     if scan.notice?.hasPrefix("Some") == true { partial.insert(provider) }
+                }
+                // Events are credited by model (a MiniMax call made through
+                // Claude Code lands on MiniMax); whole-day recovered totals
+                // stay with the tool that recorded them.
+                let allEvents = sources.flatMap(\.snapshot.events)
+                let allDays = sources.flatMap(\.snapshot.historicalDays)
+                var buckets: [IslandProvider: [DailyTokenBucket]] = [:]
+                var saveErrors: [IslandProvider: String] = [:]
+                for provider in IslandProvider.allCases {
+                    let target = provider.costProvider
+                    buckets[provider] = CostSummary.summarize(
+                        events: allEvents.filter { $0.provider == target },
+                        now: now, includeAllHistory: true,
+                        historicalDays: allDays.filter { $0.provider == target },
+                        recordedEvents: allEvents.filter { $0.recordingProvider == target || $0.provider == target }
+                    ).dailyTokens
+                    saveErrors[provider] = sources.filter { source in
+                        source.owner == nil || source.owner == target
+                            || source.snapshot.events.contains { $0.provider == target }
+                    }.compactMap(\.snapshot.saveError).first
                 }
                 return (buckets, partial, saveErrors)
             }.value

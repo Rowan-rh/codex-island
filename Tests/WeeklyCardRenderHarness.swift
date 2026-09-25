@@ -5,6 +5,8 @@ import SwiftUI
 struct WeeklyCardRenderHarness {
     @MainActor
     static func main() throws {
+        // Caption checks below read English copy; pin it regardless of the host locale.
+        UserDefaults.standard.register(defaults: [AppLanguageResolver.key: AppLanguage.en.rawValue])
         let app = NSApplication.shared
         app.setActivationPolicy(.regular)
         if CommandLine.arguments.contains("--studio") {
@@ -39,7 +41,7 @@ struct WeeklyCardRenderHarness {
             })
         })
         let snapshot = WeeklyUsageSnapshot.make(buckets: buckets, now: now, calendar: calendar, isDemo: true)
-        for (expectedTier, multiplier) in [(WeeklyCardTier.white, 0.1), (.black, 1.0), (.blue, 10.0)] {
+        for (volume, multiplier) in [("light", 0.1), ("regular", 1.0), ("heavy", 10.0)] {
             let scaled = buckets.mapValues { values in
                 values.map { bucket in
                     DailyTokenBucket(dayStart: bucket.dayStart, tokens: Int(Double(bucket.tokens) * multiplier),
@@ -49,12 +51,19 @@ struct WeeklyCardRenderHarness {
             }
             let card = WeeklyUsageSnapshot.make(buckets: scaled, now: now, calendar: calendar, isDemo: true)
             for metric in WeeklyCardMetric.allCases {
-                guard card.tier(for: metric) == expectedTier else { throw WeeklyCardExportError.renderingFailed }
                 for format in WeeklyCardFormat.allCases {
                     let data = try WeeklyCardExporter.png(snapshot: card, format: format, signature: "@yourname", metric: metric)
-                    try verify(data, format: format, tier: expectedTier)
-                    try data.write(to: destination.appendingPathComponent("\(expectedTier.rawValue)-\(metric.rawValue)-\(format.rawValue).png"))
+                    try verify(data, format: format)
+                    try data.write(to: destination.appendingPathComponent("\(volume)-\(metric.rawValue)-\(format.rawValue).png"))
                 }
+            }
+        }
+        for backdrop in WeeklyCardBackdropStyle.allCases {
+            for format in WeeklyCardFormat.allCases {
+                let data = try WeeklyCardExporter.png(snapshot: snapshot, format: format,
+                                                      signature: "@yourname", backdrop: backdrop)
+                try verify(data, format: format)
+                try data.write(to: destination.appendingPathComponent("background-\(backdrop.rawValue)-\(format.rawValue).png"))
             }
         }
         for (label, amount) in [("empty", 0), ("tiny", 1), ("huge", 99_999_999_999)] {
@@ -63,15 +72,15 @@ struct WeeklyCardRenderHarness {
                                                       now: now, calendar: calendar, isDemo: true, hasPartialRecords: true)
             let data = try WeeklyCardExporter.png(snapshot: snapshot, format: .square,
                                                   signature: "@a_very_long_signature_12345678901")
-            try verify(data, format: .square, tier: snapshot.tier(for: .apiValue))
+            try verify(data, format: .square)
             try data.write(to: destination.appendingPathComponent("edge-\(label).png"))
         }
-        let differentTiers = WeeklyUsageSnapshot.make(buckets: [.grok: [DailyTokenBucket(
+        let mixedMetrics = WeeklyUsageSnapshot.make(buckets: [.grok: [DailyTokenBucket(
             dayStart: interval.start, tokens: 1_000_000_000, billableTokens: 1_000_000, dollars: 9.99, unpricedTokens: 0
         )]], now: now, calendar: calendar, isDemo: true)
         for metric in WeeklyCardMetric.allCases {
-            let data = try WeeklyCardExporter.png(snapshot: differentTiers, format: .square, signature: "@yourname", metric: metric)
-            try verify(data, format: .square, tier: metric == .apiValue ? .white : .blue)
+            let data = try WeeklyCardExporter.png(snapshot: mixedMetrics, format: .square, signature: "@yourname", metric: metric)
+            try verify(data, format: .square)
             try data.write(to: destination.appendingPathComponent("metric-\(metric.rawValue).png"))
         }
         let historyStart = calendar.date(byAdding: .day, value: -800, to: calendar.startOfDay(for: now)) ?? now
@@ -90,7 +99,7 @@ struct WeeklyCardRenderHarness {
             for metric in WeeklyCardMetric.allCases {
                 for format in WeeklyCardFormat.allCases {
                     let data = try WeeklyCardExporter.png(snapshot: card, format: format, signature: "@yourname", metric: metric)
-                    try verify(data, format: format, tier: card.tier(for: metric))
+                    try verify(data, format: format)
                     try data.write(to: destination.appendingPathComponent("period-\(period.rawValue)-\(metric.rawValue)-\(format.rawValue).png"))
                 }
             }
@@ -99,9 +108,9 @@ struct WeeklyCardRenderHarness {
             dayStart: now, tokens: 1000, billableTokens: 1000, dollars: 1, unpricedTokens: 0
         )]], period: .allTime, now: now, calendar: calendar, isDemo: true)
         let singleDayPNG = try WeeklyCardExporter.png(snapshot: singleDay, format: .feed, signature: "@yourname")
-        try verify(singleDayPNG, format: .feed, tier: .white)
+        try verify(singleDayPNG, format: .feed)
         try singleDayPNG.write(to: destination.appendingPathComponent("period-single-day.png"))
-        let data = try Data(contentsOf: destination.appendingPathComponent("black-apiValue-feed.png"))
+        let data = try Data(contentsOf: destination.appendingPathComponent("regular-apiValue-feed.png"))
         let share = try WeeklyCardShareContent(png: data, caption: snapshot.shareText(metric: .apiValue))
         guard share.image.representations.contains(where: { $0.pixelsWide == 1080 && $0.pixelsHigh == 1350 }),
               share.caption.contains("not a bill"), share.caption.contains("https://codexisland.com") else {
@@ -113,11 +122,11 @@ struct WeeklyCardRenderHarness {
         guard clipboard.data(forType: .png) == data, clipboard.data(forType: .tiff) != nil else {
             throw WeeklyCardExportError.clipboardFailed
         }
-        print("PASS: 48 PNG renders, earned color pixels, exact output dimensions, sharing image/caption, PNG/TIFF clipboard round trip")
+        print("PASS: 60 PNG renders, four dark backgrounds, exact output dimensions, sharing image/caption, PNG/TIFF clipboard round trip")
         print(destination.path)
     }
 
-    static func verify(_ data: Data, format: WeeklyCardFormat, tier: WeeklyCardTier) throws {
+    static func verify(_ data: Data, format: WeeklyCardFormat) throws {
         guard let image = NSBitmapImageRep(data: data), image.pixelsWide == 1080,
               image.pixelsHigh == Int(format.size.height * 2) else {
             throw WeeklyCardExportError.renderingFailed
@@ -125,12 +134,7 @@ struct WeeklyCardRenderHarness {
         guard let color = image.colorAt(x: 0, y: 0)?.usingColorSpace(.sRGB) else {
             throw WeeklyCardExportError.renderingFailed
         }
-        let correctColor: Bool
-        switch tier {
-        case .white: correctColor = min(color.redComponent, color.greenComponent, color.blueComponent) > 0.8
-        case .black: correctColor = max(color.redComponent, color.greenComponent, color.blueComponent) < 0.12
-        case .blue: correctColor = color.blueComponent > 0.6 && color.redComponent < 0.2 && color.greenComponent < 0.35
-        }
+        let correctColor = max(color.redComponent, color.greenComponent, color.blueComponent) < 0.18
         guard correctColor else { throw WeeklyCardExportError.renderingFailed }
     }
 }
