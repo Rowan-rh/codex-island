@@ -143,14 +143,14 @@ struct WeeklyCardStudio: View {
         VStack(spacing: 0) {
             GeometryReader { geometry in
                 if isLoading {
-                    placeholder(icon: "", title: "Gathering your usage…",
-                                detail: "Reading usage records on this Mac.", loading: true)
+                    placeholder(icon: "", title: L10n.tr("Gathering your usage…"),
+                                detail: L10n.tr("Reading usage records on this Mac."), loading: true)
                 } else if snapshot.totalTokens == 0 {
-                    placeholder(icon: "chart.bar.xaxis", title: "No usage in this period.",
-                                detail: "No recorded tokens in this period. Try another period or include more providers.")
+                    placeholder(icon: "chart.bar.xaxis", title: L10n.tr("No usage in this period."),
+                                detail: L10n.tr("No recorded tokens in this period. Try another period or include more providers."))
                 } else if metric == .apiValue && !snapshot.hasPricedUsage {
-                    placeholder(icon: "dollarsign.circle", title: "API prices are unavailable.",
-                                detail: "Refresh to load API prices, or choose Tokens.")
+                    placeholder(icon: "dollarsign.circle", title: L10n.tr("API prices are unavailable."),
+                                detail: L10n.tr("Refresh to load API prices, or choose Tokens."))
                 } else if actualSize {
                     ScrollView([.horizontal, .vertical]) {
                         card.padding(24)
@@ -246,7 +246,7 @@ struct WeeklyCardStudio: View {
                 Spacer()
                 Picker(L10n.tr("Format"), selection: $formatRaw) {
                     ForEach(WeeklyCardFormat.allCases) { option in
-                        Text(L10n.tr(option.title)).tag(option.rawValue)
+                        Text(option.title).tag(option.rawValue)
                     }
                 }
                 .labelsHidden()

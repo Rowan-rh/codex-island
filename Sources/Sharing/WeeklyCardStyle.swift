@@ -5,9 +5,9 @@ enum WeeklyCardFormat: String, CaseIterable, Identifiable {
     var id: String { rawValue }
     var title: String {
         switch self {
-        case .feed: return "Feed · 4:5"
-        case .square: return "Square · 1:1"
-        case .story: return "Story · 9:16"
+        case .feed: return L10n.tr("Feed · 4:5")
+        case .square: return L10n.tr("Square · 1:1")
+        case .story: return L10n.tr("Story · 9:16")
         }
     }
     var size: CGSize {

@@ -16,7 +16,7 @@ CodexIsland 是一个原生 macOS 悬浮层，把 MacBook 刘海变成类似 Dyn
 
 - **两个服务，四个窗口。** 在一个面板里显示 Claude 5 小时 + 7 天，以及 Codex 5 小时 + 7 天。
 - **支持 MiniMax CN。** 在设置 → 提供商中加入 `MiniMax CN`，查看中国区 Token Plan 的 5 小时和周额度。
-- **DeepSeek 钱包。** 在设置 → 提供商中加入 DeepSeek，查看官方接口返回的 API 钱包余额。
+- **DeepSeek 钱包与本地用量。** 在设置 → 提供商中加入 DeepSeek，查看官方接口返回的 API 钱包余额。OpenCode 中 `providerID: "deepseek"` 的本地会话 token 也会计入成本和热力图；钱包余额与本地 token 用量分开统计。
 - **Jev 使用量。** 在设置 → 提供商中加入 Jev，查看 OpenCode 本地记录的 Jev 使用量。
 - **贴合刘海的悬浮层。** 紧凑状态是一个对齐物理刘海的黑色胶囊；没有刘海的 Mac 会退回到菜单栏胶囊。
 - **悬停预览。** 鼠标移到刘海附近时，胶囊会展开到足够显示每个可见服务的 5 小时百分比和重置提示。

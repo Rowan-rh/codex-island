@@ -600,6 +600,11 @@ private struct TokenIntensityScale {
 private struct DayDetailStrip: View {
     let day: OverviewDay
 
+    private var providerColumns: [GridItem] {
+        Array(repeating: GridItem(.flexible(), alignment: .trailing),
+              count: min(3, max(1, day.usage.count)))
+    }
+
     var body: some View {
         VStack(spacing: 8) {
             Rectangle()
@@ -630,14 +635,19 @@ private struct DayDetailStrip: View {
                     color: .white.opacity(0.78),
                     dimmed: true
                 )
+            }
 
-                ForEach(day.usage) { item in
-                    detailMetric(label: item.provider.name.uppercased(), spokenLabel: item.provider.name,
-                                 value: item.tokens, color: item.provider.color)
+            if !day.usage.isEmpty {
+                LazyVGrid(columns: providerColumns, alignment: .trailing, spacing: 7) {
+                    ForEach(day.usage) { item in
+                        detailMetric(label: item.provider.name.uppercased(), spokenLabel: item.provider.name,
+                                     value: item.tokens, color: item.provider.color)
+                    }
                 }
+                .frame(maxWidth: .infinity, alignment: .trailing)
             }
         }
-        .frame(height: 46)
+        .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityElement(children: .combine)
         .accessibilityLabel(accessibilityLabel)
     }
@@ -663,7 +673,7 @@ private struct DayDetailStrip: View {
                 .minimumScaleFactor(0.72)
                 .allowsTightening(true)
         }
-        .frame(width: 82, alignment: .trailing)
+        .frame(maxWidth: 112, alignment: .trailing)
         .help(L10n.tr("%@: %@ tokens", spokenLabel ?? label, OverviewContent.formatExactTokens(value)))
     }
 

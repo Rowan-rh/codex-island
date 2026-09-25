@@ -4,7 +4,7 @@ enum WeeklyCardTier: String, CaseIterable, Identifiable {
     case white, black, blue
 
     var id: String { rawValue }
-    var title: String { rawValue.capitalized }
+    var title: String { L10n.tr(rawValue.capitalized) }
 
     func minimum(for metric: WeeklyCardMetric) -> Double {
         switch self {

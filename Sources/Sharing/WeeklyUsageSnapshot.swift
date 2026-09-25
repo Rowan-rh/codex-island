@@ -3,23 +3,23 @@ import Foundation
 enum WeeklyCardMetric: String, CaseIterable, Identifiable {
     case apiValue, tokens
     var id: String { rawValue }
-    var title: String { self == .apiValue ? "API value" : "Tokens" }
+    var title: String { L10n.tr(self == .apiValue ? "API value" : "Tokens") }
 }
 
 struct WeeklyValueMilestone {
     let minimumDollars: Double
     let label: String
-    let headline: String
+    let key: String
 
     private static let tiers: [Self] = [
-        .init(minimumDollars: 1_000_000_000, label: "$1B", headline: "Billions. One week."),
-        .init(minimumDollars: 100_000_000, label: "$100M", headline: "Nine-figure week."),
-        .init(minimumDollars: 10_000_000, label: "$10M", headline: "Eight-figure week."),
-        .init(minimumDollars: 1_000_000, label: "$1M", headline: "Seven-figure week."),
-        .init(minimumDollars: 100_000, label: "$100K", headline: "Six-figure week."),
-        .init(minimumDollars: 10_000, label: "$10K", headline: "Five-figure week."),
-        .init(minimumDollars: 1_000, label: "$1K", headline: "Four-figure week."),
-        .init(minimumDollars: 100, label: "$100", headline: "Three-figure week.")
+        .init(minimumDollars: 1_000_000_000, label: "$1B", key: "billions"),
+        .init(minimumDollars: 100_000_000, label: "$100M", key: "nineFigures"),
+        .init(minimumDollars: 10_000_000, label: "$10M", key: "eightFigures"),
+        .init(minimumDollars: 1_000_000, label: "$1M", key: "sevenFigures"),
+        .init(minimumDollars: 100_000, label: "$100K", key: "sixFigures"),
+        .init(minimumDollars: 10_000, label: "$10K", key: "fiveFigures"),
+        .init(minimumDollars: 1_000, label: "$1K", key: "fourFigures"),
+        .init(minimumDollars: 100, label: "$100", key: "threeFigures")
     ]
 
     static func earned(dollars: Double) -> Self? {
@@ -28,19 +28,7 @@ struct WeeklyValueMilestone {
     }
 
     func headline(for period: WeeklyCardPeriod) -> String {
-        switch period {
-        case .lastSevenDays: return headline
-        case .lastThirtyDays:
-            return minimumDollars >= 1_000_000_000 ? "Billions. 30 days."
-                : headline.replacingOccurrences(of: "-figure week.", with: " figures. 30 days.")
-        case .lastThreeMonths:
-            return minimumDollars >= 1_000_000_000 ? "Billions. 3 months."
-                : headline.replacingOccurrences(of: "-figure week.", with: " figures. 3 months.")
-        case .thisYear: return headline.replacingOccurrences(of: "week", with: "year")
-        case .allTime:
-            return minimumDollars >= 1_000_000_000 ? "Billions. All time."
-                : headline.replacingOccurrences(of: "week", with: "total")
-        }
+        L10n.tr("Weekly milestone.\(key).\(period.rawValue)")
     }
 }
 
@@ -59,32 +47,43 @@ enum WeeklyCardPeriod: String, CaseIterable, Identifiable {
     }
 
     var tokenHeadline: String {
-        switch self {
-        case .lastSevenDays: return "My week with AI."
-        case .lastThirtyDays: return "30 days with AI."
-        case .lastThreeMonths: return "Three months with AI."
-        case .thisYear: return "My year with AI."
-        case .allTime: return "My AI journey."
-        }
+        L10n.tr(tokenHeadlineKey)
     }
 
     var valueQualifier: String {
-        switch self {
-        case .lastSevenDays: return "In just 7 days."
-        case .lastThirtyDays: return "In just 30 days."
-        case .lastThreeMonths: return "In just 3 months."
-        case .thisYear: return "This year so far."
-        case .allTime: return "All time."
-        }
+        L10n.tr(valueQualifierKey)
     }
 
     var tokenCallToAction: String {
+        L10n.tr(tokenCallToActionKey)
+    }
+
+    private var tokenHeadlineKey: String {
         switch self {
-        case .lastSevenDays: return "Your week. Your card."
-        case .lastThirtyDays: return "Your 30 days. Your card."
-        case .lastThreeMonths: return "Your AI. Your card."
-        case .thisYear: return "Your year. Your card."
-        case .allTime: return "Your AI. Your card."
+        case .lastSevenDays: "My week with AI."
+        case .lastThirtyDays: "30 days with AI."
+        case .lastThreeMonths: "Three months with AI."
+        case .thisYear: "My year with AI."
+        case .allTime: "My AI journey."
+        }
+    }
+
+    private var valueQualifierKey: String {
+        switch self {
+        case .lastSevenDays: "In just 7 days."
+        case .lastThirtyDays: "In just 30 days."
+        case .lastThreeMonths: "In just 3 months."
+        case .thisYear: "This year so far."
+        case .allTime: "All time."
+        }
+    }
+
+    private var tokenCallToActionKey: String {
+        switch self {
+        case .lastSevenDays: "Your week. Your card."
+        case .lastThirtyDays: "Your 30 days. Your card."
+        case .lastThreeMonths, .allTime: "Your AI. Your card."
+        case .thisYear: "Your year. Your card."
         }
     }
 
@@ -150,18 +149,22 @@ struct WeeklyUsageSnapshot {
     var totalDollars: Double { providers.reduce(0) { $0 + $1.dollars } }
     var valueMilestone: WeeklyValueMilestone? { .earned(dollars: totalDollars) }
     var valueHeadline: String { valueMilestone?.headline(for: period) ?? period.tokenHeadline }
-    var valueChallenge: String { valueMilestone == nil ? "What does yours look like?" : "Can you top this?" }
+    var valueChallenge: String {
+        L10n.tr(valueMilestone == nil ? "What does yours look like?" : "Can you top this?")
+    }
     var hasPartialPricing: Bool { providers.contains { $0.unpricedTokens > 0 } }
     var hasRecoveredHistory: Bool { recoveredTokens > 0 }
     var hasPricedUsage: Bool { providers.contains { $0.tokens > $0.unpricedTokens } }
     var valueSuffix: String { hasPartialPricing || hasPartialRecords ? "+" : "" }
     var activeDays: Int { days.filter { $0.total > 0 }.count }
-    var activityLabel: String { "\(activeDays) active \(activeDays == 1 ? "day" : "days")" }
+    var activityLabel: String {
+        L10n.tr(activeDays == 1 ? "%d active day" : "%d active days", activeDays)
+    }
     var tokenLabel: String {
         let count = Self.compactTokens(totalTokens)
-        return "\(count.value)\(count.unit) \(totalTokens == 1 ? "token" : "tokens")"
+        return L10n.tr(totalTokens == 1 ? "%@ token" : "%@ tokens", "\(count.value)\(count.unit)")
     }
-    var durationLabel: String { "\(days.count) \(days.count == 1 ? "day" : "days")" }
+    var durationLabel: String { L10n.tr(days.count == 1 ? "%d day" : "%d days", days.count) }
     var peakDay: Day? { days.filter { $0.total > 0 }.max { $0.total < $1.total } }
 
     static func make(
@@ -226,10 +229,18 @@ struct WeeklyUsageSnapshot {
 
     func dateText(_ date: Date, format: String) -> String {
         let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.locale = format == "yyyy-MM-dd"
+            ? Locale(identifier: "en_US_POSIX") : AppLanguageResolver.locale
         formatter.calendar = calendar
         formatter.timeZone = calendar.timeZone
-        formatter.dateFormat = format
+        switch format {
+        case "yyyy-MM-dd": formatter.dateFormat = format
+        case "MMM d, yyyy": formatter.setLocalizedDateFormatFromTemplate("yMMMd")
+        case "MMM d": formatter.setLocalizedDateFormatFromTemplate("MMMd")
+        case "EEE": formatter.setLocalizedDateFormatFromTemplate("EEE")
+        case "MMM yy": formatter.setLocalizedDateFormatFromTemplate("yMMM")
+        default: formatter.dateFormat = format
+        }
         return formatter.string(from: date)
     }
 
@@ -272,38 +283,48 @@ struct WeeklyUsageSnapshot {
 
     func shareText(metric: WeeklyCardMetric = .tokens) -> String {
         let stack = providers.map(\.provider.name).joined(separator: " + ")
-        let demoLabel = period == .lastSevenDays ? "Demo week" : "Demo \(period.title.lowercased())"
-        let qualifier = isDemo ? demoLabel : String(period.tokenHeadline.dropLast())
-        let caveat = (hasPartialRecords ? " Partial local records." : "")
-            + (hasRecoveredHistory ? " Includes recovered daily totals on their original dates." : "")
+        let cardTitle = L10n.tr("%@ card", tier(for: metric).title)
+        let caveats = [
+            hasPartialRecords ? L10n.tr("Some local records are missing.") : nil,
+            hasRecoveredHistory ? L10n.tr("Includes recovered daily totals on their original dates.") : nil
+        ].compactMap { $0 }.joined(separator: " ")
         if metric == .apiValue {
-            let pricing = hasPartialPricing ? " Some tokens have no known price." : ""
-            let timeframe = period == .lastThreeMonths ? "over the last 3 months" : "in \(durationLabel)"
+            let pricing = hasPartialPricing ? L10n.tr("Some tokens have no known price.") : nil
+            let timeframe = period == .lastThreeMonths
+                ? L10n.tr("over the last 3 months")
+                : L10n.tr("during %@", durationLabel)
+            let demo = isDemo ? L10n.tr("Demo: ") : ""
+            let notes = ([L10n.tr("API-rate estimate in USD, not a bill. Tokens include cache."),
+                          caveats, pricing].compactMap { $0 }.filter { !$0.isEmpty }).joined(separator: " ")
             return """
-            \(isDemo ? "Demo: " : "")\(valueHeadline) My AI usage: \(Self.money(totalDollars))\(valueSuffix) at API rates \(timeframe).
-            \(tokenLabel) · \(activityLabel) · \(stack)
-            \(tier(for: metric).title) card
+            \(demo)\(valueHeadline) \(L10n.tr("My AI usage: %@ at API rates %@.", Self.money(totalDollars) + valueSuffix, timeframe))
+            \(L10n.tr("%@ · %@ · %@", tokenLabel, activityLabel, stack))
+            \(cardTitle)
             \(dateLabel)
-            API-rate estimate (USD), not a bill. Tokens include cache.\(caveat)\(pricing)
+            \(notes)
 
             \(valueChallenge)
             https://codexisland.com
             """
         }
+        let demo = isDemo ? L10n.tr("Demo: ") : ""
+        let notes = ([L10n.tr("Includes cache tokens."), caveats].filter { !$0.isEmpty }).joined(separator: " ")
+        let closing = L10n.tr(period == .lastSevenDays
+            ? "What does your week look like?" : "What does your AI usage look like?")
         return """
-        \(qualifier): \(tokenLabel). \(activityLabel) out of \(days.count).
-        \(tier(for: metric).title) card · \(stack)
-        \(dateLabel) · Includes cache tokens.\(caveat)
+        \(demo)\(period.tokenHeadline) \(L10n.tr("%@ across %@ in %@.", tokenLabel, activityLabel, durationLabel))
+        \(L10n.tr("%@ · %@", cardTitle, stack))
+        \(dateLabel) · \(notes)
 
-        \(period == .lastSevenDays ? "What does your week look like?" : "What does your AI usage look like?")
-        Make your card with CodexIsland → https://codexisland.com
+        \(closing)
+        \(L10n.tr("Make your card with CodexIsland → %@", "https://codexisland.com"))
         """
     }
 
     static func money(_ amount: Double, cents: Bool = true) -> String {
         if cents && amount > 0 && amount < 0.01 { return "<$0.01" }
         let formatter = NumberFormatter()
-        formatter.locale = Locale(identifier: "en_US")
+        formatter.locale = AppLanguageResolver.locale
         formatter.numberStyle = .currency
         formatter.currencyCode = "USD"
         formatter.currencySymbol = "$"
@@ -331,7 +352,7 @@ struct WeeklyUsageSnapshot {
                 value = (raw * 10).rounded(.down) / 10
             }
             let formatter = NumberFormatter()
-            formatter.locale = Locale(identifier: "en_US")
+            formatter.locale = AppLanguageResolver.locale
             formatter.numberStyle = .decimal
             formatter.maximumFractionDigits = 1
             return (formatter.string(from: NSNumber(value: value)) ?? "0", unit)
@@ -341,6 +362,11 @@ struct WeeklyUsageSnapshot {
 
     func percentLabel(for tokens: Int) -> String {
         let percent = totalTokens > 0 ? Double(tokens) / Double(totalTokens) * 100 : 0
-        return percent > 0 && percent < 1 ? "<1%" : "\(Int(percent.rounded()))%"
+        if percent > 0 && percent < 1 { return "<1%" }
+        let formatter = NumberFormatter()
+        formatter.locale = AppLanguageResolver.locale
+        formatter.numberStyle = .percent
+        formatter.maximumFractionDigits = 0
+        return formatter.string(from: NSNumber(value: percent / 100)) ?? "\(Int(percent.rounded()))%"
     }
 }
