@@ -12,10 +12,14 @@ accessibility label, and grid. That repeats date arithmetic and provider aggrega
 several times within a single view update. Cost publications still refresh the
 snapshot, including new dates and provider records.
 
-Contribution cells have a fixed width. Their provider segments use that width
-directly, avoiding a geometry reader and an extra layout pass for each active day.
-Keep per-day hover, selection, help text, and accessibility intact when changing
-how the grid is drawn.
+The contribution grid is drawn by one `Canvas` (`ContributionCanvas`). Per-cell
+views — fill, clip, border, provider stripe, hover tracking and tooltip for each
+day — produced thousands of display-list items that SwiftUI re-walked on every
+frame of a page swipe, so slides involving the overview ran at roughly 30 fps.
+The canvas resolves hover and clicks from the pointer position, re-identifies a
+single tooltip view per hovered day, and exposes one accessibility child per past
+day. Keep per-day hover, selection, help text, and accessibility intact when
+changing how the grid is drawn.
 
 ## Reproduce transition stalls
 
@@ -40,17 +44,32 @@ window open for manual checks; stop the process afterward.
 
 The benchmark covers content transitions, not the outer island glow, material
 halo, mouse tracking, or Settings. Profile those separately before attributing
-cost to them. Remaining candidates include the continuously shaded glow,
-blurred chart transitions, and keeping offscreen carousel pages mounted.
-Any page-unmounting optimization must preserve provider selection, outgoing
-transition content, rapid navigation, and the first-use carousel cue.
+cost to them.
+
+`scripts/benchmark-rendering.sh Tests/MotionBenchmark.swift` mounts the real
+`IslandRootView` and reports main-loop gaps while it animates: the open morph
+(60–500 ms after each expand, first frame excluded) and page swipes across all
+three pages. Same caveats as above — it is a stall signal, not display FPS.
+
+The loading sweep's conic gradient is rendered with `.drawingGroup()`. Without
+it, CoreGraphics shaded the gradient on the main thread every tick, over the
+whole 800 pt panel while expanded.
 
 ## Content-sized carousel
 
 `ContentSizedPageLayout` measures the selected page at the available width with
-an unspecified height. Its horizontal position is animatable, but its selected
-page is discrete: a half-finished swipe must not select a different page's height.
-Each page remains mounted, retaining provider selection and transition content.
+an unspecified height and places the pages side by side once. The horizontal
+slide is a separate `PageSlideEffect` transform, so a swipe animates without
+re-placing the pages each frame. The selected page is discrete: a half-finished
+swipe must not select a different page's height.
+
+On open, `PagedContent` builds only the selected page; building all three with
+the open morph stalled its first frame by about 200 ms, so the shape visibly lagged
+the text. The other pages are built once the entrance settles (nearest first,
+one per step), and immediately on any navigation or drag. The opening page is
+recorded as mounted right away so it stays in place as the outgoing page. Once
+built, pages stay mounted for the rest of that open, retaining provider selection
+and transition content; the first-use carousel cue waits until its neighbour exists.
 Graph pages supply their own vertical padding; calendar details participate in
 normal layout rather than requesting a fixed height increment from the model.
 

@@ -38,7 +38,7 @@ struct PageHeightTests {
                                  "Opening interrupted by navigation left the wrong height")
                 }
             }
-            let fixture = NSHostingView(rootView: ContentSizedPageLayout(selectedPage: 1, position: 0.3) {
+            let fixture = NSHostingView(rootView: ContentSizedPageLayout(selectedPage: 1) {
                 Color.red.frame(height: 80)
                 Color.blue.frame(height: 217)
                 Color.green.frame(height: 350)

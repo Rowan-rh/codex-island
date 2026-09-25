@@ -259,31 +259,9 @@ private struct ContributionGrid: View {
             MonthRail(marks: monthMarks)
                 .frame(width: gridWidth, height: 12, alignment: .leading)
 
-            HStack(alignment: .top, spacing: gridSpacing) {
-                ForEach(weeks) { week in
-                    VStack(spacing: verticalSpacing) {
-                        ForEach(Array(week.slots.enumerated()), id: \.offset) { _, slot in
-                            switch slot {
-                            case .spacer:
-                                Color.clear.frame(width: cellSize, height: cellSize)
-                            case .day(let day):
-                                if day.isFuture {
-                                    FutureContributionCell(day: day.date, cellSize: cellSize)
-                                } else {
-                                    ContributionCell(
-                                        day: day,
-                                        intensityScale: scale,
-                                        cellSize: cellSize,
-                                        isSelected: isSelected(day)
-                                    ) {
-                                        toggleSelection(day)
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    .frame(width: cellSize, height: gridHeight, alignment: .top)
-                }
+            ContributionCanvas(weeks: weeks, scale: scale, cellSize: cellSize, spacing: gridSpacing,
+                               selectedDate: selectedDate, calendar: calendar) { day in
+                toggleSelection(day)
             }
             .frame(width: gridWidth, height: gridHeight, alignment: .topLeading)
         }
@@ -342,10 +320,6 @@ private struct ContributionGrid: View {
 
     private var gridSpacing: CGFloat {
         return 2.35
-    }
-
-    private var verticalSpacing: CGFloat {
-        return gridSpacing
     }
 
     private var gridWidth: CGFloat {
@@ -447,98 +421,152 @@ private struct MonthRail: View {
     }
 }
 
-private struct FutureContributionCell: View {
-    let day: Date
+/// Draws every day of the heatmap in one Canvas. Per-cell views (fill, clip,
+/// border, provider stripe, hover and tooltip each) added thousands of display
+/// list items that SwiftUI re-walked on every frame of a page swipe, so the
+/// overview page slid at roughly 30fps. Hover, click, tooltip and per-day
+/// accessibility elements are handled here for the whole grid.
+private struct ContributionCanvas: View {
+    let weeks: [ContributionWeek]
+    let scale: TokenIntensityScale
     let cellSize: CGFloat
+    let spacing: CGFloat
+    let selectedDate: Date?
+    let calendar: Calendar
+    let onSelect: (OverviewDay) -> Void
+
+    @State private var hoveredDate: Date?
 
     var body: some View {
-        RoundedRectangle(cornerRadius: cornerRadius)
-            .fill(.white.opacity(0.012))
-            .overlay {
-                RoundedRectangle(cornerRadius: cornerRadius)
-                    .strokeBorder(.white.opacity(0.030), lineWidth: 0.5)
-            }
-        .frame(width: cellSize, height: cellSize)
-        .accessibilityHidden(true)
-    }
-
-    private var cornerRadius: CGFloat {
-        min(3, cellSize * 0.22)
-    }
-}
-
-private struct ContributionCell: View {
-    let day: OverviewDay
-    let intensityScale: TokenIntensityScale
-    let cellSize: CGFloat
-    let isSelected: Bool
-    let onSelect: () -> Void
-
-    @State private var hovering = false
-
-    var body: some View {
-        ZStack {
-            cellFill
-        }
-            .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
-            .overlay {
-                RoundedRectangle(cornerRadius: cornerRadius)
-                    .strokeBorder(strokeColor, lineWidth: isSelected ? 1.2 : 0.5)
-            }
-            .frame(width: cellSize, height: cellSize)
-            .contentShape(Rectangle())
-            .onTapGesture(perform: onSelect)
-            .onHover { hovering = $0 }
-            .help(helpText)
-            .accessibilityElement()
-            .accessibilityLabel(helpText)
-            .accessibilityAddTraits(isSelected ? .isSelected : [])
-    }
-
-    @ViewBuilder
-    private var cellFill: some View {
-        let opacity = day.totalTokens > 0 ? intensityScale.opacity(for: day.totalTokens) : 0.035
-        if let provider = day.leadingProvider {
-            provider.color.opacity(opacity)
-                .overlay(alignment: .bottom) {
-                    if day.usage.count > 1 {
-                        HStack(spacing: 0) {
-                            ForEach(day.usage) { item in
-                                item.provider.color.opacity(max(0.35, opacity))
-                                    .frame(width: cellSize * CGFloat(Double(item.tokens) / Double(day.totalTokens)))
-                            }
-                        }
-                        .frame(height: max(2, cellSize * 0.20))
-                    }
+        Canvas { context, _ in
+            for (column, week) in weeks.enumerated() {
+                for (row, slot) in week.slots.enumerated() {
+                    guard case .day(let day) = slot else { continue }
+                    draw(day, in: cellRect(column: column, row: row), context: context)
                 }
-        } else {
-            Color.white.opacity(opacity)
+            }
+        }
+        .frame(width: gridWidth, height: gridHeight)
+        .contentShape(Rectangle())
+        .onContinuousHover { phase in
+            switch phase {
+            case .active(let location): hoveredDate = day(at: location).flatMap { $0.isFuture ? nil : $0.date }
+            case .ended: hoveredDate = nil
+            }
+        }
+        .onTapGesture(coordinateSpace: .local) { location in
+            guard let day = day(at: location), !day.isFuture else { return }
+            onSelect(day)
+        }
+        .overlay {
+            // Re-identified per hovered day so macOS shows a fresh tooltip for
+            // each cell, like the old per-cell `.help`.
+            Color.clear
+                .help(hoveredDay.map(Self.helpText) ?? "")
+                .id(hoveredDate)
+                .allowsHitTesting(hoveredDate != nil)
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityChildren {
+            ForEach(pastDays, id: \.date) { day in
+                Rectangle()
+                    .accessibilityLabel(Self.helpText(day))
+                    .accessibilityAddTraits(isSelected(day) ? [.isButton, .isSelected] : .isButton)
+                    .accessibilityAction { onSelect(day) }
+            }
         }
     }
 
     private var cornerRadius: CGFloat { min(3, cellSize * 0.22) }
+    private var gridWidth: CGFloat { CGFloat(weeks.count) * (cellSize + spacing) - spacing }
+    private var gridHeight: CGFloat { 7 * cellSize + 6 * spacing }
 
-    private var strokeColor: Color {
-        if isSelected { return .white.opacity(0.72) }
-        if hovering { return .white.opacity(0.22) }
-        guard day.totalTokens > 0 else { return .white.opacity(0.04) }
-        return .white.opacity(0.06 + Double(intensityScale.level(for: day.totalTokens)) * 0.012)
+    private var pastDays: [OverviewDay] {
+        weeks.flatMap(\.slots).compactMap { slot in
+            guard case .day(let day) = slot, !day.isFuture else { return nil }
+            return day
+        }
     }
 
-    private var helpText: String {
+    private var hoveredDay: OverviewDay? {
+        guard let hoveredDate else { return nil }
+        return pastDays.first { $0.date == hoveredDate }
+    }
+
+    private func cellRect(column: Int, row: Int) -> CGRect {
+        CGRect(x: CGFloat(column) * (cellSize + spacing), y: CGFloat(row) * (cellSize + spacing),
+               width: cellSize, height: cellSize)
+    }
+
+    private func day(at point: CGPoint) -> OverviewDay? {
+        let pitch = cellSize + spacing
+        let column = Int(floor(point.x / pitch)), row = Int(floor(point.y / pitch))
+        guard weeks.indices.contains(column), (0..<7).contains(row),
+              point.x - CGFloat(column) * pitch <= cellSize, point.y - CGFloat(row) * pitch <= cellSize,
+              weeks[column].slots.indices.contains(row),
+              case .day(let day) = weeks[column].slots[row] else { return nil }
+        return day
+    }
+
+    private func isSelected(_ day: OverviewDay) -> Bool {
+        guard !day.isFuture, let selectedDate else { return false }
+        return calendar.isDate(day.date, inSameDayAs: selectedDate)
+    }
+
+    private func draw(_ day: OverviewDay, in rect: CGRect, context: GraphicsContext) {
+        let shape = Path(roundedRect: rect, cornerRadius: cornerRadius)
+        if day.isFuture {
+            context.fill(shape, with: .color(.white.opacity(0.012)))
+            strokeBorder(rect, color: .white.opacity(0.030), width: 0.5, context: context)
+            return
+        }
+        let opacity = day.totalTokens > 0 ? scale.opacity(for: day.totalTokens) : 0.035
+        var cell = context
+        cell.clip(to: shape)
+        if let provider = day.leadingProvider {
+            cell.fill(shape, with: .color(provider.color.opacity(opacity)))
+            if day.usage.count > 1 {
+                let stripeHeight = max(2, cellSize * 0.20)
+                var x = rect.minX
+                for item in day.usage {
+                    let width = cellSize * CGFloat(Double(item.tokens) / Double(day.totalTokens))
+                    cell.fill(Path(CGRect(x: x, y: rect.maxY - stripeHeight, width: width, height: stripeHeight)),
+                              with: .color(item.provider.color.opacity(max(0.35, opacity))))
+                    x += width
+                }
+            }
+        } else {
+            cell.fill(shape, with: .color(.white.opacity(opacity)))
+        }
+        let selected = isSelected(day)
+        strokeBorder(rect, color: strokeColor(for: day, selected: selected),
+                     width: selected ? 1.2 : 0.5, context: context)
+    }
+
+    /// Matches `strokeBorder`: the stroke sits inside the cell's bounds.
+    private func strokeBorder(_ rect: CGRect, color: Color, width: CGFloat, context: GraphicsContext) {
+        let inset = rect.insetBy(dx: width / 2, dy: width / 2)
+        context.stroke(Path(roundedRect: inset, cornerRadius: max(0, cornerRadius - width / 2)),
+                       with: .color(color), lineWidth: width)
+    }
+
+    private func strokeColor(for day: OverviewDay, selected: Bool) -> Color {
+        if selected { return .white.opacity(0.72) }
+        if hoveredDate == day.date { return .white.opacity(0.22) }
+        guard day.totalTokens > 0 else { return .white.opacity(0.04) }
+        return .white.opacity(0.06 + Double(scale.level(for: day.totalTokens)) * 0.012)
+    }
+
+    private static func helpText(_ day: OverviewDay) -> String {
         L10n.tr(
             "%@: %@, %@",
-            Self.dayFormatter.string(from: day.date),
+            dayFormatter.string(from: day.date),
             OverviewContent.formatTokensSpoken(day.totalTokens),
-            dominanceLabel
+            day.dominanceLabel
         ) + (day.usage.isEmpty ? "" : "\n" + day.usage.map { item in
             let percent = Double(item.tokens) / Double(day.totalTokens) * 100
             return "\(item.provider.name): \(String(format: "%.1f", percent))%"
         }.joined(separator: ", "))
-    }
-
-    private var dominanceLabel: String {
-        day.dominanceLabel
     }
 
     private static let dayFormatter: DateFormatter = {
