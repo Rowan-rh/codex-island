@@ -82,6 +82,13 @@ providers' own usage endpoints.
 - **Approaching-limit alerts.** Optional warning and critical thresholds tint
   the island and pulse the peek pill as a visible 5-hour window nears its
   limit.
+- **Run-out forecast.** When the recent pace would use up a window before it
+  resets, its usage tile shows roughly when that happens. The pace comes from
+  readings the app already records, so the forecast adds no polling and stays
+  hidden until there is at least 15 minutes of history in the current cycle.
+- **System notifications.** Optional macOS notifications when a window first
+  crosses a threshold (with the forecast run-out time) and when a window that
+  reached warning resets. Turn them on under Settings → Alerts.
 - **Codex reset credits.** When reset credits are available, the Usage footer
   shows their count and expiration details.
 - **Configurable token counting.** The TOKENS hero can sum every token type

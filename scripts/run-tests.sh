@@ -233,6 +233,27 @@ swiftc \
 
 swiftc \
   -parse-as-library \
+  -o "$OUT_DIR/usage-forecast-tests" \
+  Sources/Usage/UsageForecast.swift \
+  Sources/Usage/AppUsage.swift \
+  Sources/Model/UsageDisplayModeStore.swift \
+  Tests/UsageForecastTests.swift
+
+"$OUT_DIR/usage-forecast-tests"
+
+# AlertDecision shares a file with AlertEngine, so compile it with the app sources.
+./scripts/setup-sparkle.sh >/dev/null
+swiftc -O -target "$(uname -m)-apple-macos13.0" -parse-as-library -F Vendor/Sparkle \
+  -framework SwiftUI -framework AppKit -framework ServiceManagement -framework Sparkle \
+  -Xlinker -rpath -Xlinker "$PWD/Vendor/Sparkle" \
+  -o "$OUT_DIR/alert-decision-tests" \
+  $(find Sources -name '*.swift' ! -name 'App.swift' | sort) \
+  Tests/AlertDecisionTests.swift
+
+CODEXISLAND_DEMO=1 "$OUT_DIR/alert-decision-tests"
+
+swiftc \
+  -parse-as-library \
   -o "$OUT_DIR/provider-session-recovery-tests" \
   Sources/Model/IslandProvider.swift \
   Sources/Model/UsageDisplayModeStore.swift \
