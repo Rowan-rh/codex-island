@@ -55,6 +55,10 @@ The loading sweep's conic gradient is rendered with `.drawingGroup()`. Without
 it, CoreGraphics shaded the gradient on the main thread every tick, over the
 whole 800 pt panel while expanded.
 
+Off Low Power Mode the sweep still rests after a minute without hover, refresh,
+or an active alert, and fades back in on the next event. Running it continuously
+cost about 8% CPU with the island collapsed and 20% expanded, against ~0% at rest.
+
 ## Content-sized carousel
 
 `ContentSizedPageLayout` measures the selected page at the available width with
