@@ -354,12 +354,19 @@ private struct GlowLayer: View {
     @ObservedObject private var lowPower = LowPowerModeStore.shared
     @ObservedObject private var alerts = AlertEngine.shared
     @ObservedObject private var occlusion = WindowOcclusionStore.shared
+    /// Off Low Power Mode the sweep is ambient, but it still rests once
+    /// nothing has happened for `ambientRestDelay`: the 30Hz redraw is the
+    /// app's largest idle cost (~8% CPU collapsed, ~20% expanded).
+    @State private var ambientAwake = true
+    @State private var restToken = UUID()
+
+    private static let ambientRestDelay: TimeInterval = 60
 
     var body: some View {
         ZStack {
             LoadingSweep(
                 active: !occlusion.isOccluded
-                    && (lowPower.effectiveEnabled ? glowEventActive : true),
+                    && (glowEventActive || (!lowPower.effectiveEnabled && ambientAwake)),
                 tint: glowColor
             )
 
@@ -390,6 +397,24 @@ private struct GlowLayer: View {
                     color: isExpanded ? .black.opacity(0.5) : .clear,
                     radius: 20, y: 10
                 )
+        }
+        .onAppear { scheduleRest() }
+        .onChange(of: glowEventActive) { active in
+            if active {
+                restToken = UUID()
+                ambientAwake = true
+            } else {
+                scheduleRest()
+            }
+        }
+    }
+
+    private func scheduleRest() {
+        let token = UUID()
+        restToken = token
+        DispatchQueue.main.asyncAfter(deadline: .now() + Self.ambientRestDelay) {
+            guard restToken == token, !glowEventActive else { return }
+            ambientAwake = false
         }
     }
 
@@ -580,32 +605,40 @@ private struct LoadingSweep: View {
     let tint: Color
 
     var body: some View {
-        if active {
-            TimelineView(.animation(minimumInterval: 1.0 / 30.0)) { context in
-                let t = context.date.timeIntervalSinceReferenceDate
-                let rotation = (t * 100).truncatingRemainder(dividingBy: 360)
-                IslandShape()
-                    .stroke(
-                        AngularGradient(
-                            gradient: Gradient(stops: [
-                                .init(color: .clear, location: 0.00),
-                                .init(color: tint.opacity(0.0), location: 0.55),
-                                .init(color: tint, location: 0.78),
-                                .init(color: .white.opacity(0.95), location: 0.92),
-                                .init(color: tint.opacity(0.0), location: 1.00),
-                            ]),
-                            center: .center,
-                            angle: .degrees(rotation)
-                        ),
-                        lineWidth: 4
-                    )
-                    // Without this CoreGraphics shades the conic gradient on the main
-                    // thread every tick, over the full 800pt panel while expanded.
-                    // Metal renders the same pixels; the blur stays outside so its
-                    // halo isn't clipped.
-                    .drawingGroup()
-                    .blur(radius: 3)
+        ZStack {
+            if active {
+                sweep
+                    .transition(.opacity)
             }
+        }
+        .animation(.easeInOut(duration: 0.6), value: active)
+    }
+
+    private var sweep: some View {
+        TimelineView(.animation(minimumInterval: 1.0 / 30.0)) { context in
+            let t = context.date.timeIntervalSinceReferenceDate
+            let rotation = (t * 100).truncatingRemainder(dividingBy: 360)
+            IslandShape()
+                .stroke(
+                    AngularGradient(
+                        gradient: Gradient(stops: [
+                            .init(color: .clear, location: 0.00),
+                            .init(color: tint.opacity(0.0), location: 0.55),
+                            .init(color: tint, location: 0.78),
+                            .init(color: .white.opacity(0.95), location: 0.92),
+                            .init(color: tint.opacity(0.0), location: 1.00),
+                        ]),
+                        center: .center,
+                        angle: .degrees(rotation)
+                    ),
+                    lineWidth: 4
+                )
+                // Without this CoreGraphics shades the conic gradient on the main
+                // thread every tick, over the full 800pt panel while expanded.
+                // Metal renders the same pixels; the blur stays outside so its
+                // halo isn't clipped.
+                .drawingGroup()
+                .blur(radius: 3)
         }
     }
 }
