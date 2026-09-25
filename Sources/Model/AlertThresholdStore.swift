@@ -16,6 +16,7 @@ final class AlertThresholdStore: ObservableObject {
     private static let enabledKey = "MacIsland.alertsEnabled"
     private static let warningKey = "MacIsland.alertWarning"
     private static let criticalKey = "MacIsland.alertCritical"
+    private static let notificationsKey = "MacIsland.alertNotifications"
 
     /// Allowed integer ranges. Steppers in the Settings UI clamp to these.
     /// Keeping warning < critical is enforced live in the UI; if a user
@@ -37,9 +38,16 @@ final class AlertThresholdStore: ObservableObject {
         didSet { UserDefaults.standard.set(criticalPercent, forKey: Self.criticalKey) }
     }
 
+    /// Also post macOS notifications for crossings and resets. Off by default;
+    /// turning it on asks for permission (see `SystemNotifier`).
+    @Published var notificationsEnabled: Bool {
+        didSet { UserDefaults.standard.set(notificationsEnabled, forKey: Self.notificationsKey) }
+    }
+
     private init() {
         self.enabled = Pref.seededBool(key: Self.enabledKey, default: false)
         self.warningPercent = Pref.int(key: Self.warningKey, default: 80, range: Self.warningRange)
         self.criticalPercent = Pref.int(key: Self.criticalKey, default: 95, range: Self.criticalRange)
+        self.notificationsEnabled = UserDefaults.standard.bool(forKey: Self.notificationsKey)
     }
 }

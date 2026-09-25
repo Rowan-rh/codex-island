@@ -279,6 +279,9 @@ struct ChartTile: View {
     private func subCaption() -> String {
         if let r = window.resetAt {
             let delta = max(0, r.timeIntervalSinceNow)
+            if let runsOut = runsOutTime() {
+                return L10n.tr("out ~%@ · resets in %@", runsOut, Duration.compact(delta))
+            }
             return L10n.tr("resets in %@", Duration.compact(delta))
         }
         // "no data" is our internal sentinel for "API returned null for this
@@ -296,6 +299,9 @@ struct ChartTile: View {
     }
 
     private func compactSubCaption() -> String {
+        if let runsOut = runsOutTime() {
+            return L10n.tr("out ~%@", runsOut)
+        }
         if let r = window.resetAt {
             let delta = max(0, r.timeIntervalSinceNow)
             return "↻ " + Duration.compact(delta)
@@ -304,5 +310,21 @@ struct ChartTile: View {
             return err
         }
         return ""
+    }
+
+    /// Clock time the window runs out at its recent pace, when that comes
+    /// before the reset. Reads the same recorded series as the spark chart.
+    private func runsOutTime() -> String? {
+        guard window.hasReading,
+              case .runsOut(let at) = UsageForecast.project(samples: historyStore.samples(key: historyKey),
+                                                             current: window) else { return nil }
+        return Self.clockFormatter.string(from: at)
+    }
+
+    private static var clockFormatter: DateFormatter {
+        let formatter = DateFormatter()
+        formatter.locale = L10n.locale
+        formatter.setLocalizedDateFormatFromTemplate("jmm")
+        return formatter
     }
 }

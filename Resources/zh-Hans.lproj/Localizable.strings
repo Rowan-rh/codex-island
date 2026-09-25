@@ -100,6 +100,8 @@
 "Refresh now" = "立即刷新";
 "Refreshing…" = "正在刷新…";
 "resets in %@" = "%@ 后重置";
+"out ~%@ · resets in %@" = "约 %@ 用完 · %@ 后重置";
+"out ~%@" = "约 %@ 用完";
 "Resets in %@" = "%@ 后重置";
 "Restart CodexIsland to apply language?" = "重启 CodexIsland 以应用语言？";
 "Restart now" = "立即重启";
@@ -469,3 +471,12 @@
 "Open DeepSeek API keys" = "打开 DeepSeek API 密钥页面";
 "%@: wallet balance unavailable" = "%@：钱包余额不可用";
 "%@: wallet balance %@" = "%@：钱包余额 %@";
+"System notifications" = "系统通知";
+"Blocked in System Settings → Notifications. Allow CodexIsland there to receive them." = "已在“系统设置 → 通知”中被关闭，在那里允许 CodexIsland 后才能收到。";
+"Notify when a limit first crosses a threshold, and when it resets." = "额度首次超过阈值或重置时发送通知。";
+"%@ is nearly out: %d%% used" = "%@ 额度即将用尽：已用 %d%%";
+"%@ is running low: %d%% used" = "%@ 额度偏紧：已用 %d%%";
+"%@ limit has reset" = "%@ 额度已重置";
+"Now at %d%% used." = "当前已用 %d%%。";
+"Runs out around %@ at the current pace." = "按当前速度，约 %@ 用完。";
+"Resets at %@." = "将于 %@ 重置。";

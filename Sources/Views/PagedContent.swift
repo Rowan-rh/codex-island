@@ -19,20 +19,36 @@ struct PagedContent: View {
     @State private var peekOffset: CGFloat = 0
     @State private var bumpOffset: CGFloat = 0
     @State private var dragOffset: CGFloat = 0
+    /// Pages built so far in this open. Only the selected page is built with
+    /// the open morph; building all three (the overview heatmap especially)
+    /// stalled its first frame for ~200ms, so the shape visibly lagged the text.
+    @State private var mountedPages: Set<ScreenPref.Screen> = []
 
     var body: some View {
-        ContentSizedPageLayout(selectedPage: screenPref.screen.pageIndex,
-                               position: CGFloat(screenPref.screen.pageIndex),
-                               feedbackOffset: peekOffset + bumpOffset + dragOffset) {
-            UsageView()
-                .padding(.vertical, 24)
-                .accessibilityHidden(screenPref.screen != .usage)
-            CostView()
-                .padding(.vertical, 24)
-                .accessibilityHidden(screenPref.screen != .cost)
-            OverviewView()
-                .accessibilityHidden(screenPref.screen != .overview)
+        ContentSizedPageLayout(selectedPage: screenPref.screen.pageIndex) {
+            if isMounted(.usage) {
+                UsageView()
+                    .padding(.vertical, 24)
+                    .accessibilityHidden(screenPref.screen != .usage)
+            } else {
+                Color.clear
+            }
+            if isMounted(.cost) {
+                CostView()
+                    .padding(.vertical, 24)
+                    .accessibilityHidden(screenPref.screen != .cost)
+            } else {
+                Color.clear
+            }
+            if isMounted(.overview) {
+                OverviewView()
+                    .accessibilityHidden(screenPref.screen != .overview)
+            } else {
+                Color.clear
+            }
         }
+        .modifier(PageSlideEffect(position: CGFloat(screenPref.screen.pageIndex),
+                                  feedbackOffset: peekOffset + bumpOffset + dragOffset))
         .clipped()
         .contentShape(Rectangle())
         .gesture(
@@ -40,6 +56,7 @@ struct PagedContent: View {
                 .onChanged { value in
                     let horizontal = abs(value.translation.width) > abs(value.translation.height)
                     guard horizontal else { return }
+                    mountAllPages()
 
                     let atLeadingEdge = screenPref.screen.pageIndex == 0 && value.translation.width > 0
                     let atTrailingEdge = screenPref.screen.pageIndex == ScreenPref.Screen.allCases.count - 1
@@ -64,6 +81,7 @@ struct PagedContent: View {
                 }
         )
         .onAppear {
+            mountRemainingPagesAfterOpen()
             // Discoverability cue, not decorative motion — fires even
             // when @Environment(\.accessibilityReduceMotion) is on,
             // because without it reduce-motion users have no path to
@@ -74,6 +92,7 @@ struct PagedContent: View {
             else { return }
             schedulePeek()
         }
+        .onChange(of: screenPref.screen) { _ in mountAllPages() }
         .onChange(of: screenPref.hasSwipedScreen) { swiped in
             // User swiped mid-peek: collapse the peek smoothly so the
             // composite offset doesn't jump when the real screen
@@ -101,11 +120,39 @@ struct PagedContent: View {
         }
     }
 
+    private func isMounted(_ page: ScreenPref.Screen) -> Bool {
+        page == screenPref.screen || mountedPages.contains(page)
+    }
+
+    private func mountAllPages() {
+        guard mountedPages.count < ScreenPref.Screen.allCases.count else { return }
+        mountedPages = Set(ScreenPref.Screen.allCases)
+    }
+
+    /// Builds the off-screen pages once the entrance has settled, nearest
+    /// first and one per step, so each build lands while nothing is moving.
+    private func mountRemainingPagesAfterOpen() {
+        // Record the opening page now so it stays mounted as the outgoing
+        // page if the user navigates before the others are built.
+        mountedPages.insert(screenPref.screen)
+        let selected = screenPref.screen.pageIndex
+        let remaining = ScreenPref.Screen.allCases
+            .filter { $0 != screenPref.screen }
+            .sorted { abs($0.pageIndex - selected) < abs($1.pageIndex - selected) }
+        for (step, page) in remaining.enumerated() {
+            DispatchQueue.main.asyncAfter(deadline: .now() + Self.firstMountDelay + Double(step) * 0.12) {
+                mountedPages.insert(page)
+            }
+        }
+    }
+
+    private static let firstMountDelay = 0.5
+
     private func schedulePeek() {
-        // 0.40s lets the panel's openMorph + content fade-in settle
-        // (~0.42s + ~0.28s) before the peek begins, so the discoverability
-        // beat is its own gesture instead of competing with the entrance.
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.40) {
+        // Waits for the panel's openMorph + content fade-in to settle and for
+        // the neighbouring page to be built, so the discoverability beat is
+        // its own gesture instead of competing with the entrance.
+        DispatchQueue.main.asyncAfter(deadline: .now() + Self.firstMountDelay + 0.10) {
             guard !screenPref.hasSwipedScreen else { return }
             // This is horizontal navigation affordance, so use the same
             // page curve as real swipes. It feels connected to the carousel

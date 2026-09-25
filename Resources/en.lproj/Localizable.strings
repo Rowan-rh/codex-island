@@ -100,6 +100,8 @@
 "Refresh now" = "Refresh now";
 "Refreshing…" = "Refreshing…";
 "resets in %@" = "resets in %@";
+"out ~%@ · resets in %@" = "out ~%@ · resets in %@";
+"out ~%@" = "out ~%@";
 "Resets in %@" = "Resets in %@";
 "Restart CodexIsland to apply language?" = "Restart CodexIsland to apply language?";
 "Restart now" = "Restart now";
@@ -469,3 +471,12 @@
 "Open DeepSeek API keys" = "Open DeepSeek API keys";
 "%@: wallet balance unavailable" = "%@: wallet balance unavailable";
 "%@: wallet balance %@" = "%@: wallet balance %@";
+"System notifications" = "System notifications";
+"Blocked in System Settings → Notifications. Allow CodexIsland there to receive them." = "Blocked in System Settings → Notifications. Allow CodexIsland there to receive them.";
+"Notify when a limit first crosses a threshold, and when it resets." = "Notify when a limit first crosses a threshold, and when it resets.";
+"%@ is nearly out: %d%% used" = "%@ is nearly out: %d%% used";
+"%@ is running low: %d%% used" = "%@ is running low: %d%% used";
+"%@ limit has reset" = "%@ limit has reset";
+"Now at %d%% used." = "Now at %d%% used.";
+"Runs out around %@ at the current pace." = "Runs out around %@ at the current pace.";
+"Resets at %@." = "Resets at %@.";
