@@ -50,16 +50,18 @@ enum AppLanguageResolver {
     }
 
     static var bundle: Bundle? {
-        guard let resourceName = current.resourceName,
-              let path = Bundle.main.path(forResource: resourceName, ofType: "lproj")
-        else { return nil }
-        return Bundle(path: path)
+        current.resourceName.flatMap { lprojBundles[$0] }
     }
 
-    static var englishBundle: Bundle? {
-        guard let path = Bundle.main.path(forResource: "en", ofType: "lproj") else { return nil }
-        return Bundle(path: path)
-    }
+    static var englishBundle: Bundle? { lprojBundles["en"] }
+
+    // Resolved once: L10n.tr runs per heatmap cell, and a path lookup per call
+    // showed up as main-thread time when the panel opens.
+    private static let lprojBundles: [String: Bundle] = Dictionary(
+        uniqueKeysWithValues: AppLanguage.allCases.compactMap(\.resourceName).compactMap { name in
+            Bundle.main.path(forResource: name, ofType: "lproj").flatMap(Bundle.init(path:)).map { (name, $0) }
+        }
+    )
 }
 
 @MainActor

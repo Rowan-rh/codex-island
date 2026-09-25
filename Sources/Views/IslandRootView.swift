@@ -599,6 +599,11 @@ private struct LoadingSweep: View {
                         ),
                         lineWidth: 4
                     )
+                    // Without this CoreGraphics shades the conic gradient on the main
+                    // thread every tick, over the full 800pt panel while expanded.
+                    // Metal renders the same pixels; the blur stays outside so its
+                    // halo isn't clipped.
+                    .drawingGroup()
                     .blur(radius: 3)
             }
         }
