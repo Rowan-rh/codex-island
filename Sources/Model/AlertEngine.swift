@@ -178,6 +178,7 @@ final class AlertEngine: ObservableObject {
             return
         }
 
+        notify(result, inputs: inputs)
         guard let pulse = result.pulse else { return }
         if isPulseSuppressed() { return }
         // Always replace, even if a previous pulse hadn't been consumed —
@@ -192,6 +193,40 @@ final class AlertEngine: ObservableObject {
     func prepareForPreview() {
         crossings.removeAll()
         warmedUp = true
+    }
+
+    /// Hands new crossings and resets to the system notifier, which drops
+    /// them unless the user opted in. Unlike the peek pulse, these still go
+    /// out while the panel is open — the notification may be read later.
+    private func notify(_ result: AlertDecision.CrossingsEvalResult, inputs: [AlertDecision.WindowInput]) {
+        func line(_ pulse: PulseLine) -> SystemNotifier.Line {
+            let window = inputs.first { $0.provider == pulse.provider }?.window ?? .unknown
+            let samples = historyKey(for: pulse.provider).map { UsageHistoryStore.shared.samples(key: $0) } ?? []
+            return SystemNotifier.Line(provider: pulse.provider, percent: pulse.percent, resetAt: pulse.resetAt,
+                                       forecast: UsageForecast.project(samples: samples, current: window))
+        }
+        if let pulse = result.pulse {
+            SystemNotifier.shared.postCrossing(pulse.lines.map(line), severity: pulse.severity)
+        }
+        if !result.resets.isEmpty {
+            SystemNotifier.shared.postReset(result.resets.map(line))
+        }
+    }
+
+    /// The recorded series behind the same window the alert evaluates.
+    private func historyKey(for provider: Provider) -> String? {
+        switch provider {
+        case .claude:
+            return "\(provider.rawValue).\(UsageWindow.fiveHour.rawValue)"
+        case .codex:
+            let kind: UsageWindow = UsageStore.shared.codex.peekWindowIsWeekly ? .weekly : .fiveHour
+            return "\(provider.rawValue).\(kind.rawValue)"
+        default:
+            let connections = ProviderConnectionStore.shared
+            return connections.primary(provider).map {
+                connections.snapshot(provider).historyKey(provider: provider, limit: $0)
+            }
+        }
     }
 
     private func isPulseSuppressed() -> Bool {
@@ -249,7 +284,14 @@ enum AlertDecision {
         /// Non-nil when at least one new crossing was recorded AND we're
         /// past warmup. `nil` during warmup or when nothing crossed.
         let pulse: AlertEngine.PulseEvent?
+        /// Windows that reached the warning threshold last cycle and have
+        /// since reset below it.
+        var resets: [AlertEngine.PulseLine] = []
     }
+
+    /// A reset must move the boundary at least this far; smaller shifts are
+    /// provider jitter on the same cycle, not a new one.
+    static let minimumResetAdvance: TimeInterval = 10 * 60
 
     /// Pure-function crossing evaluator.
     /// - Prunes keys whose `resetAt` no longer matches the current window's
@@ -267,6 +309,18 @@ enum AlertDecision {
         warmedUp: Bool
     ) -> CrossingsEvalResult {
         var next = previous
+        var resets: [AlertEngine.PulseLine] = []
+        for input in inputs where input.visible && input.window.hasReading {
+            guard let currentReset = input.window.resetAt, input.window.percentInt < warning else { continue }
+            let reachedWarning = previous.contains { key in
+                key.provider == input.provider && key.threshold == .warning
+                    && currentReset.timeIntervalSince(key.resetAt) >= minimumResetAdvance
+            }
+            if reachedWarning {
+                resets.append(AlertEngine.PulseLine(provider: input.provider, percent: input.window.percentInt,
+                                                    resetAt: currentReset))
+            }
+        }
 
         // Prune keys whose resetAt is stale relative to the current window.
         // A `nil` resetAt means we have no current boundary; in that case
@@ -325,6 +379,6 @@ enum AlertDecision {
             guard warmedUp, !pulseLines.isEmpty else { return nil }
             return AlertEngine.PulseEvent(severity: maxSeverity, lines: pulseLines)
         }()
-        return CrossingsEvalResult(next: next, pulse: pulse)
+        return CrossingsEvalResult(next: next, pulse: pulse, resets: warmedUp ? resets : [])
     }
 }

@@ -16,6 +16,7 @@ struct SettingsView: View {
     @ObservedObject private var lowPower = LowPowerModeStore.shared
     @ObservedObject private var alwaysShow = AlwaysShowUsageStore.shared
     @ObservedObject private var alertPrefs = AlertThresholdStore.shared
+    @ObservedObject private var notifier = SystemNotifier.shared
     @ObservedObject private var spacing = IslandSpacingStore.shared
     @ObservedObject private var usageDisplay = UsageDisplayModeStore.shared
     @ObservedObject private var presentation = DisplayPresentationStore.shared
@@ -288,6 +289,14 @@ struct SettingsView: View {
             thresholdsBlock
                 .disabled(!alertPrefs.enabled)
                 .opacity(alertPrefs.enabled ? 1.0 : 0.40)
+            SettingsRow(title: "System notifications", subtitle: notificationSubtitle) {
+                SettingsToggle(isOn: alertPrefs.notificationsEnabled) {
+                    toggleNotifications()
+                }
+            }
+            .disabled(!alertPrefs.enabled)
+            .opacity(alertPrefs.enabled ? 1.0 : 0.40)
+            .onAppear { notifier.refreshPermission() }
             if alertPrefs.enabled && isDevMode {
                 SettingsRow(
                     title: "Preview",
@@ -300,6 +309,25 @@ struct SettingsView: View {
         .padding(.horizontal, 14)
         .padding(.top, 14)
         .padding(.bottom, 6)
+    }
+
+    private var notificationSubtitle: String {
+        notifier.permission == .denied
+            ? "Blocked in System Settings → Notifications. Allow CodexIsland there to receive them."
+            : "Notify when a limit first crosses a threshold, and when it resets."
+    }
+
+    /// Turning on asks macOS for permission; a refusal leaves the toggle off
+    /// so the setting never claims notifications that cannot arrive.
+    private func toggleNotifications() {
+        if alertPrefs.notificationsEnabled {
+            alertPrefs.notificationsEnabled = false
+            return
+        }
+        alertPrefs.notificationsEnabled = true
+        notifier.requestPermission { granted in
+            if !granted { alertPrefs.notificationsEnabled = false }
+        }
     }
 
     private var previewButtons: some View {
