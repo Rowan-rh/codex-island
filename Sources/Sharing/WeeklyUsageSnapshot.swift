@@ -252,10 +252,6 @@ struct WeeklyUsageSnapshot {
         }
     }
 
-    func tier(for metric: WeeklyCardMetric) -> WeeklyCardTier {
-        .earned(value: metric == .apiValue ? totalDollars : Double(totalTokens), metric: metric)
-    }
-
     func cumulativeValues(for provider: IslandProvider, metric: WeeklyCardMetric) -> [Double] {
         var total = 0.0
         return [0] + days.map { day in
@@ -283,7 +279,6 @@ struct WeeklyUsageSnapshot {
 
     func shareText(metric: WeeklyCardMetric = .tokens) -> String {
         let stack = providers.map(\.provider.name).joined(separator: " + ")
-        let cardTitle = L10n.tr("%@ card", tier(for: metric).title)
         let caveats = [
             hasPartialRecords ? L10n.tr("Some local records are missing.") : nil,
             hasRecoveredHistory ? L10n.tr("Includes recovered daily totals on their original dates.") : nil
@@ -299,7 +294,6 @@ struct WeeklyUsageSnapshot {
             return """
             \(demo)\(valueHeadline) \(L10n.tr("My AI usage: %@ at API rates %@.", Self.money(totalDollars) + valueSuffix, timeframe))
             \(L10n.tr("%@ · %@ · %@", tokenLabel, activityLabel, stack))
-            \(cardTitle)
             \(dateLabel)
             \(notes)
 
@@ -313,7 +307,7 @@ struct WeeklyUsageSnapshot {
             ? "What does your week look like?" : "What does your AI usage look like?")
         return """
         \(demo)\(period.tokenHeadline) \(L10n.tr("%@ across %@ in %@.", tokenLabel, activityLabel, durationLabel))
-        \(L10n.tr("%@ · %@", cardTitle, stack))
+        \(stack)
         \(dateLabel) · \(notes)
 
         \(closing)
@@ -345,12 +339,7 @@ struct WeeklyUsageSnapshot {
         let units: [(Double, String)] = [(1e12, "T"), (1e9, "B"), (1e6, "M"), (1e3, "K")]
         for (divisor, unit) in units where Double(count) >= divisor * 0.99995 {
             let raw = Double(count) / divisor
-            var value = (raw * 10).rounded() / 10
-            if WeeklyCardTier.earned(value: value * divisor, metric: .tokens)
-                != WeeklyCardTier.earned(value: Double(count), metric: .tokens) {
-                if raw < 1 { continue }
-                value = (raw * 10).rounded(.down) / 10
-            }
+            let value = (raw * 10).rounded() / 10
             let formatter = NumberFormatter()
             formatter.locale = AppLanguageResolver.locale
             formatter.numberStyle = .decimal
