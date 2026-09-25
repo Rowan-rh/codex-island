@@ -110,14 +110,25 @@ swiftc \
 
 "$OUT_DIR/pricing-catalog-tests"
 
-swiftc \
-  -parse-as-library \
-  -sanitize=thread \
-  -o "$OUT_DIR/pricing-catalog-race-tests" \
-  Sources/Cost/PricingCatalog.swift \
-  Tests/PricingCatalogRaceTests.swift
+# Some Xcode/macOS pairings ship a Thread Sanitizer runtime that crashes any
+# instrumented binary at launch. Probe with an empty program so a broken
+# toolchain reads as a skip, not as a race in PricingCatalog.
+printf '@main struct P { static func main() {} }\n' > "$OUT_DIR/tsan-probe.swift"
+swiftc -parse-as-library -sanitize=thread -o "$OUT_DIR/tsan-probe" "$OUT_DIR/tsan-probe.swift"
+# The trailing `exit` keeps the child shell from exec'ing the probe, so the
+# crash notice lands on the child's silenced stderr instead of ours.
+if bash -c '"$1"; exit $?' _ "$OUT_DIR/tsan-probe" >/dev/null 2>&1; then
+  swiftc \
+    -parse-as-library \
+    -sanitize=thread \
+    -o "$OUT_DIR/pricing-catalog-race-tests" \
+    Sources/Cost/PricingCatalog.swift \
+    Tests/PricingCatalogRaceTests.swift
 
-"$OUT_DIR/pricing-catalog-race-tests"
+  "$OUT_DIR/pricing-catalog-race-tests"
+else
+  echo "SKIP pricing-catalog-race-tests: Thread Sanitizer crashes even an empty program on this toolchain"
+fi
 
 swiftc \
   -parse-as-library \
