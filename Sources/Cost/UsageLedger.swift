@@ -103,7 +103,8 @@ final class UsageLedger {
             let isCurrent = database.flatMap { try? Self.isCurrent(observedAt, source: source, database: $0) } ?? true
             combined.merge(Self.canonicalized(incoming, aliases: aliases).records) { saved, latest in isCurrent && !insertOnly ? latest : saved }
             let historical = database.flatMap { try? Self.readHistoricalDays(source: source, database: $0) } ?? []
-            return Snapshot(events: Array(combined.values), saveError: Self.saveErrorMessage, historicalDays: historical)
+            return Snapshot(events: combined.values.map { $0.attributedByModel() }, saveError: Self.saveErrorMessage,
+                            historicalDays: historical)
         }
     }
 
@@ -293,12 +294,12 @@ final class UsageLedger {
                 if let id = event.recordID, !id.isEmpty {
                     identity = id
                 } else {
-                    let base = "\(event.provider.rawValue):\(event.timestamp.timeIntervalSince1970.bitPattern):\(event.model)"
+                    let base = "\(event.recordingProvider.rawValue):\(event.timestamp.timeIntervalSince1970.bitPattern):\(event.model)"
                     let occurrence = occurrences[base, default: 0]
                     occurrences[base] = occurrence + 1
                     identity = "fallback:\(base):\(occurrence)"
                 }
-                key = digest(identity, provider: event.provider)
+                key = digest(identity, provider: event.recordingProvider)
             }
             result[key] = event
         }
@@ -316,7 +317,7 @@ final class UsageLedger {
         var added: [String: String] = [:]
         var result: [String: TokenEvent] = [:]
         for (key, event) in records {
-            let keys = [key] + event.recordAliases.map { digest($0, provider: event.provider) }
+            let keys = [key] + event.recordAliases.map { digest($0, provider: event.recordingProvider) }
             let canonical = keys.compactMap { known[$0] }.first ?? key
             result[canonical] = event
             for alias in keys where known[alias] == nil {
@@ -487,7 +488,7 @@ final class UsageLedger {
             sqlite3_clear_bindings(statement)
             try bind(source.rawValue, at: 1, to: statement)
             try bind(key, at: 2, to: statement)
-            try bind(event.provider.rawValue, at: 3, to: statement)
+            try bind(event.recordingProvider.rawValue, at: 3, to: statement)
             guard sqlite3_bind_double(statement, 4, event.timestamp.timeIntervalSince1970) == SQLITE_OK else { throw StorageError.database }
             try bind(event.model, at: 5, to: statement)
             for (offset, count) in [event.inputTokens, event.outputTokens, event.cacheCreationTokens, event.cacheReadTokens].enumerated() {
@@ -522,7 +523,7 @@ final class UsageLedger {
                                      outputTokens: Int(sqlite3_column_int64(statement, 5)),
                                      cacheCreationTokens: Int(sqlite3_column_int64(statement, 6)),
                                      cacheReadTokens: Int(sqlite3_column_int64(statement, 7)),
-                                     recordID: "ledger:\(String(cString: key))"))
+                                     recordID: "ledger:\(String(cString: key))").attributedByModel())
         }
     }
 }

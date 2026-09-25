@@ -15,6 +15,10 @@
 - **WHEN** OpenCode 本地会话记录的提供商标识为 DeepSeek 且包含有效 token 用量
 - **THEN** 该记录计入 DeepSeek 的每日历史和对应的用量卡片统计
 
+#### Scenario: 通过 Claude Code 或 Codex 调用第三方模型
+- **WHEN** Claude Code 或 Codex 的本地记录使用 MiniMax 或 DeepSeek 模型
+- **THEN** 该用量计入模型所属提供商的每日历史与卡片统计，不计入 Claude 或 Codex，且与该工具的整日恢复总量不重复计算
+
 #### Scenario: 查看某日的提供商明细
 - **WHEN** 用户选择包含多个提供商记录的热力图日期
 - **THEN** 日期明细、提供商汇总和提供商筛选均显示各自有记录的提供商与其用量，且布局能容纳多项

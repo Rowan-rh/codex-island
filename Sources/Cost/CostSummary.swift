@@ -9,14 +9,19 @@ import Foundation
 /// injectable so the window boundaries are testable.
 enum CostSummary {
     static func summarize(events: [TokenEvent], now: Date = Date(), includeAllHistory: Bool = false,
-                          historicalDays: [HistoricalUsageDay] = []) -> ProviderCost {
+                          historicalDays: [HistoricalUsageDay] = [],
+                          recordedEvents: [TokenEvent]? = nil) -> ProviderCost {
         var cal = Calendar(identifier: .gregorian)
         cal.timeZone = .current
         let startOfDay = cal.startOfDay(for: now)
         let monthStart = cal.date(from: cal.dateComponents([.year, .month], from: now)) ?? startOfDay
         let currentHour = cal.dateComponents([.hour], from: now).hour ?? 0
         let currentDay = (cal.dateComponents([.day], from: now).day ?? 1) - 1
-        let recovered = HistoricalUsageDay.supplements(historicalDays, events: events.filter { $0.timestamp <= now }, calendar: cal)
+        // Whole-day snapshots count everything the recording tool logged, including
+        // calls re-attributed to another provider, so match against those too.
+        let recovered = HistoricalUsageDay.supplements(historicalDays,
+                                                       events: (recordedEvents ?? events).filter { $0.timestamp <= now },
+                                                       calendar: cal)
         var historyDays = localHistoryDays(now: now)
         let earliestEvent = events.lazy.filter({
             $0.timestamp <= now && $0.inputTokens + $0.outputTokens + $0.cacheCreationTokens + $0.cacheReadTokens > 0

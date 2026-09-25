@@ -53,8 +53,11 @@ used fraction. A weekly status of `3` means the plan has no weekly limit, so no
 fake weekly window is shown. The adapter also accepts the current count-based
 shape as a fallback and treats the count as remaining quota.
 
-If OpenCode records `providerID: "minimax-cn"` or `"minimaxi"`, those local
-token events are included in the MiniMax cost and history views. Subscription
+If OpenCode records `providerID: "minimax"`, `"minimax-cn"`, or `"minimaxi"`,
+those local token events are included in the MiniMax cost and history views.
+Claude Code and Codex calls whose model name starts with `MiniMax` (for example
+when the CLI is routed through CC Switch) are credited to MiniMax as well, not
+to the CLI that logged them. Subscription
 quota and local cost history remain separate; the cost page continues to label
 its numbers as API-equivalent estimates rather than a MiniMax invoice.
 
@@ -85,8 +88,8 @@ DeepSeek does not expose account-wide daily usage through the documented
 API-key endpoint. CodexIsland therefore does not call private dashboard APIs,
 read browser sessions, estimate usage from balance differences, or present a
 daily-usage value from the wallet. If OpenCode has local session records with
-`providerID: "deepseek"`, their recorded token counts appear in Cost and Overview
-as local usage. This log-based history is separate from the wallet balance.
+`providerID: "deepseek"`, or Claude Code / Codex records for a `deepseek*`
+model, their recorded token counts appear in Cost and Overview as local usage. This log-based history is separate from the wallet balance.
 
 ## Jev usage
 

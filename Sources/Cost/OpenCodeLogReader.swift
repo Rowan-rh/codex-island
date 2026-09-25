@@ -11,7 +11,7 @@ import SQLite3
 /// Both sources are read and deduplicated by message ID. Token data maps to
 /// the shared TokenEvent structure used by CostSummary and Pricing. Provider
 /// is inferred from the message's `providerID` field: "anthropic" → .claude,
-/// "openai" → .codex, "deepseek" → .deepseek, "minimax-cn" → .minimaxCN,
+/// "openai" → .codex, "deepseek" → .deepseek, "minimax"/"minimax-cn" → .minimaxCN,
 /// and Jev/TypeSafe IDs → .jev.
 enum OpenCodeLogReader {
     struct ScanResult {
@@ -24,7 +24,7 @@ enum OpenCodeLogReader {
         case "anthropic": return .claude
         case "openai": return .codex
         case "deepseek": return .deepseek
-        case "minimax-cn", "minimaxi": return .minimaxCN
+        case "minimax", "minimax-cn", "minimaxi": return .minimaxCN
         case "jev", "jev-agent", "typesafe", "typesafe-ai": return .jev
         default: return nil
         }

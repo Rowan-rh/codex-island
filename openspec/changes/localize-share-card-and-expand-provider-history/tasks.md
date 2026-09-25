@@ -10,6 +10,8 @@
 - [x] 2.2 为新增的 DeepSeek 归属识别加入一次性全历史回填标记，仅在完整扫描和账本保存成功后完成回填；检查失败时会重试全量扫描，成功后恢复 30 天增量扫描。
 - [x] 2.3 让热力图的提供商筛选、单日明细和汇总布局容纳所有有记录的提供商；静态检查没有用量的提供商不会伪造 token 数或显示为有活动。
 
+- [x] 2.4 Claude Code / Codex 记录按模型名（`minimax*`、`deepseek*`）改记到对应提供商，并补齐 OpenCode `minimax` 提供商 ID；账本身份保持按记录工具，整日恢复总量不重复计算。
+
 ## 3. OpenSpec 校验
 
 - [x] 3.1 运行 `openspec validate localize-share-card-and-expand-provider-history --strict --type change`，确认提案、规格、设计和任务结构有效。

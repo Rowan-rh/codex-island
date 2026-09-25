@@ -119,48 +119,60 @@ final class CostStore: ObservableObject {
             openCodeTask = nil
         }
         // Per-provider gate so a slow Claude scan doesn't block a fast
-        // Codex one (and vice versa) on the next tick.
-        if !claudeLoading {
+        // Codex one (and vice versa) on the next tick. Scans start together;
+        // each consumer awaits only the sources it reads.
+        let claudeTask: Task<UsageLedger.Snapshot, Never>? = claudeLoading ? nil : Task.detached(priority: .userInitiated) {
+            UsageLedger.shared.retain(ClaudeLogReader.scan(lookbackDays: nil), source: .claude, observedAt: Date())
+        }
+        let codexTask: Task<UsageLedger.Snapshot, Never>? = codexLoading ? nil : Task.detached(priority: .userInitiated) {
+            UsageLedger.shared.retain(CodexLogReader.scan(lookbackDays: nil), source: .codex, observedAt: Date())
+        }
+        if let claudeTask {
             claudeLoading = true
             Task.detached(priority: .userInitiated) { [weak self] in
-                let result = await LocalCostRefresh.gather(local: {
-                    let observedAt = Date()
-                    return UsageLedger.shared.retain(ClaudeLogReader.scan(lookbackDays: nil),
-                                                     source: .claude, observedAt: observedAt)
-                }, shared: openCodeTask)
-                let saved = result.local
-                let openCode = result.shared
-                let events = saved.events + (openCode?.events.filter { $0.provider == .claude } ?? [])
-                let cost = CostSummary.summarize(events: events, historicalDays: saved.historicalDays)
+                let saved = await claudeTask.value
+                let openCode = await openCodeTask?.value
+                let cost = Self.summarizeCLI(.claude, saved: saved, openCode: openCode)
                 await self?.commitClaude(cost, saveError: saved.saveError ?? openCode?.saveError)
             }
         }
-        if !codexLoading {
+        if let codexTask {
             codexLoading = true
             Task.detached(priority: .userInitiated) { [weak self] in
-                let result = await LocalCostRefresh.gather(local: {
-                    let observedAt = Date()
-                    return UsageLedger.shared.retain(CodexLogReader.scan(lookbackDays: nil),
-                                                     source: .codex, observedAt: observedAt)
-                }, shared: openCodeTask)
-                let saved = result.local
-                let openCode = result.shared
-                let events = saved.events + (openCode?.events.filter { $0.provider == .codex } ?? [])
-                let cost = CostSummary.summarize(events: events, historicalDays: saved.historicalDays)
+                let saved = await codexTask.value
+                let openCode = await openCodeTask?.value
+                let cost = Self.summarizeCLI(.codex, saved: saved, openCode: openCode)
                 await self?.commitCodex(cost, saveError: saved.saveError ?? openCode?.saveError)
             }
         }
         for provider in localProviders where !connectedLoading.contains(provider) {
             connectedLoading.insert(provider)
             Task.detached(priority: .utility) { [weak self] in
+                // Claude Code and Codex calls to this provider's models are
+                // re-attributed by the ledger, so read those sources as well.
+                // A source already scanning from an earlier tick is read as saved.
                 let openCode = await openCodeTask?.value
-                let events = openCode?.events.filter { $0.provider == provider.costProvider } ?? []
+                let claude: UsageLedger.Snapshot? = if let claudeTask { await claudeTask.value }
+                    else { try? UsageLedger.shared.savedSnapshot(source: .claude) }
+                let codex: UsageLedger.Snapshot? = if let codexTask { await codexTask.value }
+                    else { try? UsageLedger.shared.savedSnapshot(source: .codex) }
+                let sources = [openCode, claude, codex]
+                let events = sources.flatMap { $0?.events ?? [] }.filter { $0.provider == provider.costProvider }
                 let scan = LocalCostScan(events: events)
                 let cost = CostSummary.summarize(events: events)
                 await self?.commitLocal(cost, scan: scan, provider: provider,
-                                        saveError: openCode?.saveError)
+                                        saveError: sources.compactMap { $0?.saveError }.first)
             }
         }
+    }
+
+    /// Claude Code / Codex cost: that CLI's own log plus OpenCode calls to the
+    /// same provider, minus calls the ledger re-attributed by model.
+    nonisolated private static func summarizeCLI(_ provider: TokenEvent.Provider, saved: UsageLedger.Snapshot,
+                                                 openCode: UsageLedger.Snapshot?) -> ProviderCost {
+        let recorded = saved.events + (openCode?.events.filter { $0.provider == provider } ?? [])
+        return CostSummary.summarize(events: recorded.filter { $0.provider == provider },
+                                     historicalDays: saved.historicalDays, recordedEvents: recorded)
     }
 
     private func commitLocal(_ cost: ProviderCost, scan: LocalCostScan, provider: IslandProvider, saveError: String?) {

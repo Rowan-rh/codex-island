@@ -38,7 +38,7 @@ struct HistoricalUsageDay: Codable {
             let saved = days.filter { $0.provider == provider && $0.isValid }.sorted { $0.intervalStart < $1.intervalStart }
             var observed = Array(repeating: 0, count: saved.count)
             var observedBillable = observed
-            for event in events where event.provider == provider {
+            for event in events where event.recordingProvider == provider {
                 var lower = 0, upper = saved.count
                 while lower < upper {
                     let middle = (lower + upper) / 2
