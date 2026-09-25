@@ -167,7 +167,7 @@ struct PanelFooter: View {
         // each store's refresh() prevent click-spam from stacking fetches.
         Button(action: triggerRefresh) {
             HStack(spacing: 6) {
-                LiveDot(active: activeLastUpdated != nil && !activeLoading && localNotice == nil)
+                LiveDot(active: model.state == .expanded && activeLastUpdated != nil && !activeLoading && localNotice == nil)
                 if activeLoading {
                     Text(L10n.tr("Syncing…"))
                         .font(Typography.label)
