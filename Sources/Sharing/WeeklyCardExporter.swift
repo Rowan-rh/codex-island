@@ -18,9 +18,11 @@ enum WeeklyCardExportError: LocalizedError {
 enum WeeklyCardExporter {
     static func png(snapshot: WeeklyUsageSnapshot,
                     format: WeeklyCardFormat, signature: String,
-                    metric: WeeklyCardMetric = .apiValue) throws -> Data {
+                    metric: WeeklyCardMetric = .apiValue,
+                    backdrop: WeeklyCardBackdropStyle = .solid) throws -> Data {
         let renderer = ImageRenderer(content: WeeklyUsageCard(snapshot: snapshot,
-                                                              format: format, signature: signature, metric: metric))
+                                                              format: format, signature: signature,
+                                                              metric: metric, backdrop: backdrop))
         renderer.proposedSize = ProposedViewSize(format.size)
         renderer.scale = 2
         renderer.isOpaque = true

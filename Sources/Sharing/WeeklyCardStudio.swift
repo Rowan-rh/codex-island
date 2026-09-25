@@ -6,6 +6,7 @@ struct WeeklyCardStudio: View {
     @StateObject private var history = WeeklyCardHistoryStore()
     @AppStorage("WeeklyCard.format") private var formatRaw = WeeklyCardFormat.feed.rawValue
     @AppStorage("WeeklyCard.metric") private var metricRaw = WeeklyCardMetric.apiValue.rawValue
+    @AppStorage("WeeklyCard.backdrop") private var backdropRaw = WeeklyCardBackdropStyle.solid.rawValue
     @State private var period = WeeklyCardPeriod.lastSevenDays
     @State private var included = Set(IslandProvider.allCases)
     @State private var signature = ""
@@ -18,9 +19,9 @@ struct WeeklyCardStudio: View {
 
     private let surface = Color(red: 0.020, green: 0.020, blue: 0.027)
     private let canvas = Color(red: 0.065, green: 0.067, blue: 0.080)
-    private var tier: WeeklyCardTier { snapshot.tier(for: metric) }
     private var format: WeeklyCardFormat { WeeklyCardFormat(rawValue: formatRaw) ?? .feed }
     private var metric: WeeklyCardMetric { WeeklyCardMetric(rawValue: metricRaw) ?? .apiValue }
+    private var backdrop: WeeklyCardBackdropStyle { WeeklyCardBackdropStyle(rawValue: backdropRaw) ?? .solid }
     private var usesFullHistory: Bool {
         !AppEnvironment.isDemo && period.needsExtendedHistory(now: now, calendar: .current)
     }
@@ -76,6 +77,7 @@ struct WeeklyCardStudio: View {
         }
         .onChange(of: formatRaw) { _ in status = nil }
         .onChange(of: metricRaw) { _ in status = nil }
+        .onChange(of: backdropRaw) { _ in status = nil }
         .onChange(of: period) { _ in
             status = nil
             if usesFullHistory { history.loadIfNeeded() }
@@ -186,7 +188,8 @@ struct WeeklyCardStudio: View {
     }
 
     private var card: some View {
-        WeeklyUsageCard(snapshot: snapshot, format: format, signature: signature, metric: metric)
+        WeeklyUsageCard(snapshot: snapshot, format: format, signature: signature,
+                        metric: metric, backdrop: backdrop)
     }
 
     private func placeholder(icon: String, title: String, detail: String, loading: Bool = false) -> some View {
@@ -252,6 +255,32 @@ struct WeeklyCardStudio: View {
                 .labelsHidden()
                 .pickerStyle(.menu)
                 .fixedSize()
+            }
+            VStack(alignment: .leading, spacing: 10) {
+                controlLabel("Background")
+                LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 8) {
+                    ForEach(WeeklyCardBackdropStyle.allCases) { option in
+                        Button { backdropRaw = option.rawValue } label: {
+                            WeeklyCardBackdrop(style: option)
+                                .frame(height: 62)
+                                .overlay(alignment: .bottomLeading) {
+                                    Text(option.title)
+                                        .font(Typography.label)
+                                        .foregroundStyle(.white)
+                                        .padding(8)
+                                }
+                                .overlay {
+                                    RoundedRectangle(cornerRadius: 7)
+                                        .strokeBorder(option == backdrop ? .white.opacity(0.9) : .white.opacity(0.16),
+                                                      lineWidth: option == backdrop ? 2 : 1)
+                                }
+                                .clipShape(RoundedRectangle(cornerRadius: 7))
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel(L10n.tr("%@ background", option.title))
+                        .accessibilityAddTraits(option == backdrop ? .isSelected : [])
+                    }
+                }
             }
             VStack(alignment: .leading, spacing: 8) {
                 controlLabel("Signature")
@@ -327,7 +356,8 @@ struct WeeklyCardStudio: View {
                     status = nil
                     let card = snapshot
                     let png = try WeeklyCardExporter.png(snapshot: card, format: format,
-                                                          signature: signature, metric: metric)
+                                                          signature: signature, metric: metric,
+                                                          backdrop: backdrop)
                     return try WeeklyCardShareContent(png: png, caption: card.shareText(metric: metric))
                 }, onError: { error in
                     exportError = error.localizedDescription
@@ -383,9 +413,10 @@ struct WeeklyCardStudio: View {
         status = nil
         do {
             let data = try WeeklyCardExporter.png(snapshot: snapshot,
-                                                  format: format, signature: signature, metric: metric)
+                                                  format: format, signature: signature, metric: metric,
+                                                  backdrop: backdrop)
             if save {
-                let filename = "CodexIsland-\(period.rawValue)-\(snapshot.filenameDate)-\(metric.rawValue)-\(tier.rawValue)-\(format.rawValue).png"
+                let filename = "CodexIsland-\(period.rawValue)-\(snapshot.filenameDate)-\(metric.rawValue)-\(format.rawValue)-\(backdrop.rawValue).png"
                 WeeklyCardExporter.save(data, filename: filename, window: WeeklyCardWindowController.shared.window) { result in
                     exporting = false
                     switch result {

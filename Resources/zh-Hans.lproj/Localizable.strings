@@ -248,6 +248,12 @@
 "Created on your Mac." = "在你的 Mac 上生成。";
 "Feed · 4:5" = "动态 · 4:5";
 "Format" = "格式";
+"Background" = "背景";
+"Solid" = "纯色";
+"Aurora" = "极光";
+"Orbit" = "轨道";
+"Grid" = "网格";
+"%@ background" = "%@背景";
 "Gathering your week…" = "正在整理本周记录…";
 "Image copied. Paste it into your post." = "图片已复制，可粘贴到帖子中。";
 "Include" = "包含";
@@ -278,13 +284,6 @@
 
 "Your week. Your flex." = "这一周，值得炫耀。";
 "Share…" = "分享…";
-"Earned color" = "配色等级";
-"White" = "白色";
-"Black" = "黑色";
-"Blue" = "蓝色";
-"Current tier" = "当前等级";
-"Color is earned from your weekly API value." = "配色由本周 API 换算价值决定。";
-"Color is earned from your weekly tokens, including cache." = "配色由本周 token 用量决定，包含缓存。";
 "Put your AI tab on display." = "晒出你的 AI 用量账单。";
 "Show" = "展示";
 "API value" = "API 换算价值";
@@ -300,7 +299,6 @@
 "The card includes daily usage, provider totals, active days, and your signature. It does not include prompts or conversations." = "卡片包含每日使用量、各服务商总量、活跃天数和签名，不包含提示词或对话内容。";
 "Fit" = "适应窗口";
 "Actual size" = "实际大小";
-"View color tiers" = "查看颜色等级";
 "More export options" = "更多导出选项";
 "Some local records could not be read. Totals may be incomplete." = "部分本地记录无法读取，总量可能不完整。";
 "Usage card" = "用量卡片";
@@ -352,7 +350,6 @@
 "%@ tokens" = "%@ 个 Token";
 "%d day" = "%d 天";
 "%d days" = "%d 天";
-"%@ card" = "%@卡片";
 "Some local records are missing." = "部分本地记录缺失。";
 "Some tokens have no known price." = "部分 Token 暂无已知价格。";
 "over the last 3 months" = "最近 3 个月";
@@ -361,7 +358,6 @@
 "My AI usage: %@ at API rates %@." = "AI 使用量按 API 费率估值为 %@（%@）。";
 "%@ · %@ · %@" = "%@ · %@ · %@";
 "%@ across %@ in %@." = "共 %@，有 %@，统计时段 %@。";
-"%@ · %@" = "%@ · %@";
 "Includes cache tokens." = "包含缓存 Token。";
 "What does your week look like?" = "看看你这一周的用量如何？";
 "What does your AI usage look like?" = "看看你的 AI 用量如何？";

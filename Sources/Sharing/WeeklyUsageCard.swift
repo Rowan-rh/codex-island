@@ -6,9 +6,9 @@ struct WeeklyUsageCard: View {
     let format: WeeklyCardFormat
     var signature = ""
     var metric: WeeklyCardMetric = .apiValue
+    var backdrop: WeeklyCardBackdropStyle = .solid
 
-    private var tier: WeeklyCardTier { snapshot.tier(for: metric) }
-    private var theme: WeeklyCardTheme { tier.theme }
+    private let theme = WeeklyCardTheme.midnight
     private var compact: Bool { format == .square }
     private var tokens: (value: String, unit: String) {
         WeeklyUsageSnapshot.compactTokens(snapshot.totalTokens)
@@ -50,9 +50,9 @@ struct WeeklyUsageCard: View {
         .padding(.horizontal, 36)
         .padding(.vertical, format == .story ? 88 : 32)
         .frame(width: format.size.width, height: format.size.height)
-        .background(theme.background)
+        .background(WeeklyCardBackdrop(style: backdrop))
         .foregroundStyle(theme.foreground)
-        .environment(\.colorScheme, theme == .paper ? .light : .dark)
+        .environment(\.colorScheme, .dark)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(snapshot.shareText(metric: metric))
     }

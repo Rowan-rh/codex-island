@@ -248,6 +248,12 @@
 "Created on your Mac." = "Created on your Mac.";
 "Feed · 4:5" = "Feed · 4:5";
 "Format" = "Format";
+"Background" = "Background";
+"Solid" = "Solid";
+"Aurora" = "Aurora";
+"Orbit" = "Orbit";
+"Grid" = "Grid";
+"%@ background" = "%@ background";
 "Gathering your week…" = "Gathering your week…";
 "Image copied. Paste it into your post." = "Image copied. Paste it into your post.";
 "Include" = "Include";
@@ -278,13 +284,6 @@
 
 "Your week. Your flex." = "Your week. Your flex.";
 "Share…" = "Share…";
-"Earned color" = "Earned color";
-"White" = "White";
-"Black" = "Black";
-"Blue" = "Blue";
-"Current tier" = "Current tier";
-"Color is earned from your weekly API value." = "Color is earned from your weekly API value.";
-"Color is earned from your weekly tokens, including cache." = "Color is earned from your weekly tokens, including cache.";
 "Put your AI tab on display." = "Put your AI tab on display.";
 "Show" = "Show";
 "API value" = "API value";
@@ -300,7 +299,6 @@
 "The card includes daily usage, provider totals, active days, and your signature. It does not include prompts or conversations." = "The card includes daily usage, provider totals, active days, and your signature. It does not include prompts or conversations.";
 "Fit" = "Fit";
 "Actual size" = "Actual size";
-"View color tiers" = "View color tiers";
 "More export options" = "More export options";
 "Some local records could not be read. Totals may be incomplete." = "Some local records could not be read. Totals may be incomplete.";
 "Usage card" = "Usage card";
@@ -352,7 +350,6 @@
 "%@ tokens" = "%@ tokens";
 "%d day" = "%d day";
 "%d days" = "%d days";
-"%@ card" = "%@ card";
 "Some local records are missing." = "Some local records are missing.";
 "Some tokens have no known price." = "Some tokens have no known price.";
 "over the last 3 months" = "over the last 3 months";
@@ -361,7 +358,6 @@
 "My AI usage: %@ at API rates %@." = "My AI usage: %@ at API rates %@.";
 "%@ · %@ · %@" = "%@ · %@ · %@";
 "%@ across %@ in %@." = "%@ across %@ in %@.";
-"%@ · %@" = "%@ · %@";
 "Includes cache tokens." = "Includes cache tokens.";
 "What does your week look like?" = "What does your week look like?";
 "What does your AI usage look like?" = "What does your AI usage look like?";
