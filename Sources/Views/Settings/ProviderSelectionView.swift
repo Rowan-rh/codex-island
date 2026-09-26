@@ -30,6 +30,7 @@ struct ProviderSelectionView: View {
                 .accessibilityLabel(L10n.tr("Swap left and right"))
                 slot(1, provider: selection.right)
             }
+            if selection.right != nil { extrasPicker }
             Divider().overlay(.white.opacity(0.08))
             ForEach(selection.selected) { provider in
                 connectionRow(provider)
@@ -37,6 +38,54 @@ struct ProviderSelectionView: View {
         }
         .padding(24)
         .task { connections.refreshSelected() }
+    }
+
+    /// Providers past the two island slots. They only appear in the menu
+    /// bar item, which has room for more than the notch does.
+    private var extrasPicker: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(L10n.tr("More in the menu bar"))
+                .font(.system(size: 11, weight: .medium)).foregroundStyle(.white.opacity(0.65))
+            Text(L10n.tr("Add up to two more providers. They show in the menu bar icon; the island and expanded panel keep the two above."))
+                .font(.system(size: 12)).foregroundStyle(.white.opacity(0.55))
+                .fixedSize(horizontal: false, vertical: true)
+            HStack(spacing: 8) {
+                ForEach(selection.extras) { provider in
+                    HStack(spacing: 6) {
+                        ProviderMark(provider: provider)
+                        Text(provider.name).font(.system(size: 13, weight: .medium)).lineLimit(1)
+                        Button {
+                            withAnimation(reduceMotion ? nil : .openMorph) { selection.toggleExtra(provider) }
+                        } label: {
+                            Image(systemName: "xmark").font(.system(size: 10, weight: .semibold))
+                        }
+                        .buttonStyle(.plain)
+                        .help(L10n.tr("Remove %@", provider.name))
+                        .accessibilityLabel(L10n.tr("Remove %@", provider.name))
+                    }
+                    .padding(.horizontal, 10)
+                    .frame(minHeight: 36)
+                    .background(.white.opacity(0.065), in: RoundedRectangle(cornerRadius: 8))
+                }
+                if selection.selected.count < ProviderVisibilityStore.maxCount {
+                    Menu {
+                        ForEach(IslandProvider.allCases.filter { !selection.selected.contains($0) }) { candidate in
+                            Button(candidate.name) {
+                                withAnimation(reduceMotion ? nil : .openMorph) { selection.toggleExtra(candidate) }
+                            }
+                        }
+                    } label: {
+                        Label(L10n.tr("Add provider"), systemImage: "plus")
+                            .font(.system(size: 13, weight: .medium))
+                    }
+                    .menuStyle(.borderlessButton)
+                    .fixedSize()
+                    .padding(.horizontal, 10)
+                    .frame(minHeight: 36)
+                    .background(.white.opacity(0.065), in: RoundedRectangle(cornerRadius: 8))
+                }
+            }
+        }
     }
 
     private func slot(_ index: Int, provider: IslandProvider?) -> some View {
@@ -290,7 +339,7 @@ private struct ProviderMetricSelection: View {
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
-                .accessibilityValue(isExpanded ? "Expanded" : "Collapsed")
+                .accessibilityValue(L10n.tr(isExpanded ? "Expanded" : "Collapsed"))
 
                 if isExpanded {
                     controls.padding(.top, 8)

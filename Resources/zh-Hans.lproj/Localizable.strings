@@ -174,6 +174,8 @@
 /* Provider connections */
 "On your island" = "在你的灵动岛上";
 "Choose up to two providers." = "最多选择两个提供方。";
+"More in the menu bar" = "更多（菜单栏显示）";
+"Add up to two more providers. They show in the menu bar icon; the island and expanded panel keep the two above." = "最多再添加两个提供方。它们会显示在菜单栏图标中；灵动岛和展开面板仍只显示上面两个。";
 "Swap left and right" = "交换左右位置";
 "Left" = "左侧";
 "Right" = "右侧";
@@ -480,3 +482,32 @@
 "Now at %d%% used." = "当前已用 %d%%。";
 "Runs out around %@ at the current pace." = "按当前速度，约 %@ 用完。";
 "Resets at %@." = "将于 %@ 重置。";
+
+/* Placement */
+"Placement" = "位置";
+"Display location" = "显示位置";
+"Built-in notched display uses the island; an external display uses the menu bar." = "内置刘海屏使用灵动岛；连接外接显示器时使用菜单栏。";
+"Always show the island overlay on the selected display." = "始终在所选显示器上显示灵动岛。";
+"Show a menu bar icon; click it to open all usage information." = "在菜单栏显示图标，点击即可查看全部用量信息。";
+"Automatic" = "自动";
+"Notch" = "刘海";
+"Menu Bar" = "菜单栏";
+"Sign in with MiniMax CLI" = "通过 MiniMax CLI 登录";
+"Expanded" = "已展开";
+"Collapsed" = "已收起";
+
+/* Panel states */
+"Includes recovered daily totals on their original dates." = "包含按原始日期恢复的每日总量。";
+"Connect a subscribed account or choose another provider." = "请连接已订阅的账户，或选择其他服务。";
+"Sign in to see your usage limits." = "登录后即可查看用量限额。";
+"This provider hasn't reported usage limits." = "该服务尚未返回用量限额。";
+"No active subscription" = "无有效订阅";
+"Cost unavailable: model pricing is missing" = "成本不可用：缺少模型价格";
+"Loading" = "加载中";
+"No records" = "无记录";
+"Estimated API-equivalent cost from local CLI records; not a subscription charge." = "根据本地 CLI 记录估算的 API 等价成本，并非订阅扣费。";
+"Mostly %@" = "主要使用 %@";
+"Show all providers" = "显示全部服务";
+"Show only %@" = "只显示 %@";
+"Demo data" = "演示数据";
+"Check local records" = "请检查本地记录";
