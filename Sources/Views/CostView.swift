@@ -40,7 +40,7 @@ struct CostView: View {
             CostBlock(color: provider.color, cost: cost,
                           loading: store.isLoading(provider), provider: provider.costProvider,
                           centerWhenSingle: visibility.right == nil)
-            .help(store.localNotices[provider] ?? "Estimated API-equivalent cost from local CLI records; not a subscription charge.")
+            .help(store.localNotices[provider] ?? L10n.tr("Estimated API-equivalent cost from local CLI records; not a subscription charge."))
         }
     }
 

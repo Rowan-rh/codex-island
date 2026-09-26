@@ -173,7 +173,7 @@ struct PanelFooter: View {
                         .font(Typography.label)
                         .foregroundStyle(.white.opacity(0.55))
                 } else if localNotice != nil {
-                    Text(AppEnvironment.isDemo ? "Demo data" : "Check local records")
+                    Text(L10n.tr(AppEnvironment.isDemo ? "Demo data" : "Check local records"))
                         .font(Typography.label).foregroundStyle(.white.opacity(0.55))
                 } else if connectionNeedsAttention {
                     Text(L10n.tr("Check connection"))

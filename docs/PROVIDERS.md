@@ -1,9 +1,13 @@
 # Provider connections
 
-Settings → Providers selects one or two distinct providers. A single provider
-occupies the left slot. Picking the provider already in the other slot swaps
-them; the central swap button does the same. Existing Claude/Codex visibility
-preferences migrate automatically, and order persists across launches.
+Settings → Providers selects one or two distinct providers for the island's
+left and right slots. A single provider occupies the left slot. Picking the
+provider already in the other slot swaps them; the central swap button does the
+same. With both slots filled, **More in the menu bar** adds up to two more
+providers; they appear only in the menu bar icon, while the island and expanded
+panel keep the two slots. Choosing "None — use one provider" for the right slot
+also clears those extras. Existing Claude/Codex visibility preferences migrate
+automatically, and order persists across launches.
 
 Quota providers use the same Ring, Bar, Stepped, Numeric, and Sparkline views,
 used/remaining preference, peek pills, and threshold alerts. A provider's data

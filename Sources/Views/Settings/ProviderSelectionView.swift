@@ -339,7 +339,7 @@ private struct ProviderMetricSelection: View {
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
-                .accessibilityValue(isExpanded ? "Expanded" : "Collapsed")
+                .accessibilityValue(L10n.tr(isExpanded ? "Expanded" : "Collapsed"))
 
                 if isExpanded {
                     controls.padding(.top, 8)

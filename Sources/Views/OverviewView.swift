@@ -240,7 +240,7 @@ private struct OverviewDay: Identifiable {
     }
     var dominanceLabel: String {
         guard totalTokens > 0 else { return L10n.tr("No Activity") }
-        return dominantProvider.map { "Mostly " + $0.name } ?? L10n.tr("Mixed Use")
+        return dominantProvider.map { L10n.tr("Mostly %@", $0.name) } ?? L10n.tr("Mixed Use")
     }
 }
 
@@ -745,7 +745,7 @@ private struct ProviderSplitRow: View {
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
-                .help(selectedProvider == item.provider ? "Show all providers" : "Show only \(item.provider.name)")
+                .help(selectedProvider == item.provider ? L10n.tr("Show all providers") : L10n.tr("Show only %@", item.provider.name))
                 .accessibilityLabel("\(item.provider.name), \(share(item.tokens)) of all tokens")
                 .accessibilityAddTraits(selectedProvider == item.provider ? .isSelected : [])
             }
