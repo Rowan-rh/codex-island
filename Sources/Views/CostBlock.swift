@@ -113,7 +113,7 @@ struct CostTile: View {
         }
         if let error = window.error { return error }
         if stylePref.style != .tokens && window.dollars == 0 && !window.unknownModels.isEmpty {
-            return "Cost unavailable: model pricing is missing"
+            return L10n.tr("Cost unavailable: model pricing is missing")
         }
         switch stylePref.style {
         case .dollar:
@@ -413,8 +413,8 @@ struct CostTile: View {
     /// an "⚠ N unpriced" warning so the user knows the dollar total is an
     /// undercount rather than a clean zero.
     private var resetGlyph: String {
-        if loading && window.error != nil { return "Loading" }
-        if window.error != nil { return "No records" }
+        if loading && window.error != nil { return L10n.tr("Loading") }
+        if window.error != nil { return L10n.tr("No records") }
         if !window.unknownModels.isEmpty {
             return L10n.tr("⚠ %d unpriced", window.unknownModels.count)
         }
