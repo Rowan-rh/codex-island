@@ -174,6 +174,8 @@
 /* Provider connections */
 "On your island" = "On your island";
 "Choose up to two providers." = "Choose up to two providers.";
+"More in the menu bar" = "More in the menu bar";
+"Add up to two more providers. They show in the menu bar icon; the island and expanded panel keep the two above." = "Add up to two more providers. They show in the menu bar icon; the island and expanded panel keep the two above.";
 "Swap left and right" = "Swap left and right";
 "Left" = "Left";
 "Right" = "Right";
