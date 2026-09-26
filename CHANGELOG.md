@@ -4,6 +4,35 @@ User-facing changes per release. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); dates are when the
 tag was cut.
 
+## [0.2.6] - 2026-09-26
+
+### Added
+
+- Show up to four providers in the menu bar icon: add two more under
+  Settings → Providers → More in the menu bar. The island and expanded panel
+  keep the left and right providers.
+- MiniMax CN Token Plan quota, DeepSeek wallet balance, and local Jev usage.
+- Run-out forecast on usage tiles and optional macOS notifications when a
+  window crosses a threshold or resets.
+- Localized share cards, dark card backgrounds, and usage history for every
+  provider; third-party models are credited by model name.
+
+### Fixed
+
+- Fill in missing Simplified Chinese text for Display location, panel empty
+  states, the Cost page, and the Overview legend.
+- The island no longer lingers on the notch after connecting an external
+  display, and external-display interaction and usage display work again.
+- Stop the menu bar icon and a closed menu bar popover from keeping the main
+  thread busy, and stop the glow from spinning when hover state gets stuck.
+
+### Changed
+
+- The ambient glow rests after a minute without activity, and island expand
+  and page-swipe animations use less main-thread time.
+- README (English and Simplified Chinese) rewritten to cover every provider,
+  shortcut, setting, and privacy detail.
+
 ## [0.2.5] - 2026-09-10
 
 ### Added
