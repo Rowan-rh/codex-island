@@ -6,7 +6,8 @@
 ## 2. 本地化与文档
 
 - [x] 2.1 为"显示位置"一栏以及 `Sign in with MiniMax CLI`、`Expanded` / `Collapsed` 补充翻译。验证：中文系统下设置页"显示位置"一栏全部显示中文。
-- [x] 2.2 更新 `README.md` / `README.zh-CN.md`。验证：两份 README 都说明菜单栏图标最多显示四个提供方。
+- [x] 2.2 扫描全部界面代码，为面板空状态、成本页提示、概览图例等未走 `L10n` 或缺少翻译的文案补齐中英文。验证：扫描脚本不再报告缺少翻译的界面文案。
+- [x] 2.3 全面更新 `README.md` / `README.zh-CN.md` 和 `docs/PROVIDERS.md`：补充 Grok、Antigravity 等全部服务，修正 Claude 凭据读取顺序，更新快捷键、设置、偏好键、隐私与故障排查，两份 README 内容保持一致。验证：人工对照代码核对事实。
 
 ## 3. 整体验证
 
