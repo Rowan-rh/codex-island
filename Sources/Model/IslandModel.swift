@@ -22,6 +22,9 @@ final class IslandModel: ObservableObject {
     @Published var size: CGSize = .zero
     @Published var notch: NotchInfo
     @Published var edgeBump: EdgeBump?
+    /// Whether the pointer is over the island, as tracked by the window
+    /// controller. The view uses it as a backstop for SwiftUI's hover exit.
+    @Published var pointerInside = false
 
     /// Side extension that houses each brand logo in compact state.
     let tabWidth: CGFloat = 38
