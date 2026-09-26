@@ -5,7 +5,6 @@ import Combine
 @MainActor
 final class MenuBarController: NSObject, NSPopoverDelegate {
     private let statusItem: NSStatusItem
-    private let statusView: MenuBarStatusView
     private let panelModel: IslandModel
     private let panelController: NSHostingController<MenuBarPanelView>
     private var popover: NSPopover?
@@ -16,22 +15,21 @@ final class MenuBarController: NSObject, NSPopoverDelegate {
     private var lastItems: [MenuBarStatusItem] = []
 
     override init() {
-        statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
-        statusView = MenuBarStatusView()
+        statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         let model = IslandModel(notch: NotchInfo(width: 0, height: 32, hasNotch: true))
         panelModel = model
         panelController = NSHostingController(rootView: MenuBarPanelView(model: model))
         super.init()
 
-        statusView.onClick = { [weak self] in self?.togglePopover() }
+        // The content is one pre-rendered image on the stock button. An
+        // Auto Layout subview inside the button fought the status bar's own
+        // fitting-size pass and replicant snapshots, redrawing the status
+        // window every frame (~90% CPU) until relaunch.
         if let button = statusItem.button {
-            button.addSubview(statusView)
-            NSLayoutConstraint.activate([
-                statusView.leadingAnchor.constraint(equalTo: button.leadingAnchor),
-                statusView.trailingAnchor.constraint(equalTo: button.trailingAnchor),
-                statusView.topAnchor.constraint(equalTo: button.topAnchor),
-                statusView.bottomAnchor.constraint(equalTo: button.bottomAnchor)
-            ])
+            button.imagePosition = .imageOnly
+            button.target = self
+            button.action = #selector(togglePopover)
+            button.sendAction(on: [.leftMouseUp, .rightMouseUp])
         }
         statusItem.isVisible = false
         updateStatusView()
@@ -88,7 +86,8 @@ final class MenuBarController: NSObject, NSPopoverDelegate {
             // three-page SwiftUI tree on every click made the native popover
             // animation compete with its first layout pass.
             panelModel.setState(.expanded)
-            popover.show(relativeTo: statusView.bounds, of: statusView, preferredEdge: .minY)
+            guard let button = statusItem.button else { return }
+            popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
             installDismissalMonitors()
         }
     }
@@ -163,10 +162,10 @@ final class MenuBarController: NSObject, NSPopoverDelegate {
         let items = ProviderVisibilityStore.shared.selected.map { provider in
             MenuBarStatusItem(provider: provider, value: displayValue(for: provider, mode: mode))
         }
-        guard items != lastItems else { return }
+        guard items != lastItems, let button = statusItem.button else { return }
         lastItems = items
-        statusView.update(items: items)
-        statusItem.length = max(NSStatusItem.squareLength, statusView.fittingSize.width)
+        button.image = MenuBarStatusImage.make(items: items)
+        button.setAccessibilityLabel(items.map { "\($0.provider.name) \($0.value ?? "—")" }.joined(separator: ", "))
     }
 
     private func displayValue(for provider: IslandProvider, mode: UsageDisplayMode) -> String? {
@@ -200,75 +199,59 @@ private struct MenuBarStatusItem: Equatable {
     let value: String?
 }
 
-private final class MenuBarStatusView: NSView {
-    var onClick: (() -> Void)?
-    private let stack = NSStackView()
+/// Draws the status item's icons and values into one image. The drawing
+/// handler runs at display time, so label colors follow the menu bar's
+/// light or dark appearance.
+private enum MenuBarStatusImage {
+    private static let iconSize: CGFloat = 14
+    private static let iconGap: CGFloat = 3
+    private static let entryGap: CGFloat = 5
+    private static let font = NSFont.monospacedDigitSystemFont(ofSize: 11, weight: .medium)
+    private static let separatorFont = NSFont.systemFont(ofSize: 11, weight: .medium)
 
-    override init(frame frameRect: NSRect) {
-        super.init(frame: frameRect)
-        translatesAutoresizingMaskIntoConstraints = false
-        stack.orientation = .horizontal
-        stack.alignment = .centerY
-        stack.spacing = 5
-        stack.translatesAutoresizingMaskIntoConstraints = false
-        addSubview(stack)
-        NSLayoutConstraint.activate([
-            stack.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 4),
-            stack.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -4),
-            stack.topAnchor.constraint(equalTo: topAnchor),
-            stack.bottomAnchor.constraint(equalTo: bottomAnchor)
-        ])
-    }
-
-    @available(*, unavailable)
-    required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
-
-    override var intrinsicContentSize: NSSize { stack.fittingSize }
-
-    override func mouseDown(with event: NSEvent) { onClick?() }
-    override func rightMouseDown(with event: NSEvent) { onClick?() }
-
-    func update(items: [MenuBarStatusItem]) {
-        stack.arrangedSubviews.forEach { view in
-            stack.removeArrangedSubview(view)
-            view.removeFromSuperview()
+    static func make(items: [MenuBarStatusItem]) -> NSImage {
+        let entries = items.map { item in
+            (icon: image(for: item.provider), tint: color(for: item.provider),
+             text: NSAttributedString(string: item.value ?? "—", attributes: [.font: font]))
         }
-        for (index, item) in items.enumerated() {
-            if index > 0 {
-                let separator = NSTextField(labelWithString: "·")
-                separator.textColor = .tertiaryLabelColor
-                separator.font = NSFont.systemFont(ofSize: 11, weight: .medium)
-                stack.addArrangedSubview(separator)
+        let separator = NSAttributedString(string: "·", attributes: [.font: separatorFont])
+        var width: CGFloat = 0
+        for (index, entry) in entries.enumerated() {
+            if index > 0 { width += entryGap * 2 + separator.size().width }
+            width += iconSize + iconGap + ceil(entry.text.size().width)
+        }
+        let height = NSStatusBar.system.thickness
+        let size = NSSize(width: max(ceil(width), iconSize), height: height)
+        return NSImage(size: size, flipped: false) { _ in
+            var x: CGFloat = 0
+            for (index, entry) in entries.enumerated() {
+                if index > 0 {
+                    x += entryGap
+                    draw(separator, color: .tertiaryLabelColor, x: x, height: height)
+                    x += separator.size().width + entryGap
+                }
+                let iconRect = NSRect(x: x, y: (height - iconSize) / 2, width: iconSize, height: iconSize)
+                if let icon = entry.icon {
+                    // Every mark takes its provider color. The bundled logos are
+                    // black, non-template artwork, so NSImageView's tint never
+                    // applied to them and they vanished on a dark menu bar.
+                    icon.draw(in: iconRect)
+                    entry.tint.set()
+                    iconRect.fill(using: .sourceAtop)
+                }
+                x += iconSize + iconGap
+                draw(entry.text, color: .labelColor, x: x, height: height)
+                x += ceil(entry.text.size().width)
             }
-            stack.addArrangedSubview(entry(item))
+            return true
         }
-        invalidateIntrinsicContentSize()
-        needsLayout = true
     }
 
-    private func entry(_ item: MenuBarStatusItem) -> NSView {
-        let row = NSStackView()
-        row.orientation = .horizontal
-        row.alignment = .centerY
-        row.spacing = 3
-
-        let icon = NSImageView()
-        icon.image = Self.image(for: item.provider)
-        icon.imageScaling = .scaleProportionallyUpOrDown
-        icon.contentTintColor = Self.color(for: item.provider)
-        icon.translatesAutoresizingMaskIntoConstraints = false
-        NSLayoutConstraint.activate([
-            icon.widthAnchor.constraint(equalToConstant: 14),
-            icon.heightAnchor.constraint(equalToConstant: 14)
-        ])
-
-        let value = NSTextField(labelWithString: item.value ?? "—")
-        value.font = NSFont.monospacedDigitSystemFont(ofSize: 11, weight: .medium)
-        value.textColor = .labelColor
-        value.toolTip = item.provider.name
-        row.addArrangedSubview(icon)
-        row.addArrangedSubview(value)
-        return row
+    private static func draw(_ text: NSAttributedString, color: NSColor, x: CGFloat, height: CGFloat) {
+        let colored = NSMutableAttributedString(attributedString: text)
+        colored.addAttribute(.foregroundColor, value: color, range: NSRange(location: 0, length: colored.length))
+        let size = colored.size()
+        colored.draw(at: NSPoint(x: x, y: (height - size.height) / 2))
     }
 
     private static func image(for provider: IslandProvider) -> NSImage? {

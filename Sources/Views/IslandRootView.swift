@@ -140,70 +140,9 @@ struct IslandRootView: View {
                         }
                     }
                 }
-                .onHover { h in
-                    hovering = h
-                    if h {
-                        // Trackpad tap on hover-in. .levelChange is closer to
-                        // a volume-key tick than the .generic notification
-                        // pattern. No-op if haptics are off.
-                        NSHapticFeedbackManager.defaultPerformer.perform(
-                            .levelChange, performanceTime: .now
-                        )
-                        // PEEK ENTER: shape morphs out to peek width. Pills
-                        // fade in 60ms later so the eye sees the shape commit
-                        // first, then content arrives. Hover does NOT open
-                        // the full panel — that requires a click.
-                        if model.state == .compact {
-                            withAnimation(.openMorph) {
-                                model.setState(.peek)
-                            }
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.06) {
-                                guard model.state == .peek else { return }
-                                withAnimation(.easeOut(duration: 0.18)) {
-                                    pillsVisible = true
-                                }
-                            }
-                        }
-                    } else {
-                        // EXIT: pills fade first (unless we're pinning peek),
-                        // then the shape settles at the rest state — `.compact`
-                        // normally, `.peek` under always-show.
-                        if !alwaysShow.enabled {
-                            withAnimation(.easeOut(duration: 0.08)) {
-                                pillsVisible = false
-                            }
-                        }
-                        withAnimation(.easeOut(duration: 0.10)) {
-                            contentVisible = false
-                        }
-                        // Start the shape morph after only 20ms — overlapping
-                        // with the content fade — so the silhouette begins
-                        // shrinking while the content is still fading out.
-                        // The original 100ms wait caused a visible "flash black"
-                        // because the full-size black shape was exposed for the
-                        // entire fade before the closeMorph fired.
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.02) {
-                            guard !hovering else { return }
-                            // Re-read restState here — the user may have flipped
-                            // the always-show toggle during the 20ms wait, and
-                            // a captured-at-creation-time `target` would settle
-                            // at the wrong state for them.
-                            let target = restState
-                            if model.state != target {
-                                withAnimation(.closeMorph) {
-                                    model.setState(target)
-                                }
-                            }
-                            // Coming out of `.expanded` under always-show, the
-                            // pills were hidden by the open-panel branch — bring
-                            // them back as the shape resettles at peek.
-                            if alwaysShow.enabled && !pillsVisible {
-                                withAnimation(.easeOut(duration: 0.18)) {
-                                    pillsVisible = true
-                                }
-                            }
-                        }
-                    }
+                .onHover { handleHover($0) }
+                .onChange(of: model.pointerInside) { inside in
+                    if !inside && hovering { handleHover(false) }
                 }
             Spacer(minLength: 0)
         }
@@ -308,6 +247,77 @@ struct IslandRootView: View {
         }
     }
 
+    /// Hover enter/exit. Also called with `false` when the window controller
+    /// sees the pointer leave: it stops the window taking mouse events at that
+    /// moment, which can swallow SwiftUI's own exit and leave `hovering` stuck
+    /// (peek pill out, sweep spinning) until the next hover.
+    private func handleHover(_ h: Bool) {
+        hovering = h
+        if h {
+            // Trackpad tap on hover-in. .levelChange is closer to
+            // a volume-key tick than the .generic notification
+            // pattern. No-op if haptics are off.
+            NSHapticFeedbackManager.defaultPerformer.perform(
+                .levelChange, performanceTime: .now
+            )
+            // PEEK ENTER: shape morphs out to peek width. Pills
+            // fade in 60ms later so the eye sees the shape commit
+            // first, then content arrives. Hover does NOT open
+            // the full panel — that requires a click.
+            if model.state == .compact {
+                withAnimation(.openMorph) {
+                    model.setState(.peek)
+                }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.06) {
+                    guard model.state == .peek else { return }
+                    withAnimation(.easeOut(duration: 0.18)) {
+                        pillsVisible = true
+                    }
+                }
+            }
+        } else {
+            // EXIT: pills fade first (unless we're pinning peek),
+            // then the shape settles at the rest state — `.compact`
+            // normally, `.peek` under always-show.
+            if !alwaysShow.enabled {
+                withAnimation(.easeOut(duration: 0.08)) {
+                    pillsVisible = false
+                }
+            }
+            withAnimation(.easeOut(duration: 0.10)) {
+                contentVisible = false
+            }
+            // Start the shape morph after only 20ms — overlapping
+            // with the content fade — so the silhouette begins
+            // shrinking while the content is still fading out.
+            // The original 100ms wait caused a visible "flash black"
+            // because the full-size black shape was exposed for the
+            // entire fade before the closeMorph fired.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.02) {
+                guard !hovering else { return }
+                // Re-read restState here — the user may have flipped
+                // the always-show toggle during the 20ms wait, and
+                // a captured-at-creation-time `target` would settle
+                // at the wrong state for them.
+                let target = restState
+                if model.state != target {
+                    withAnimation(.closeMorph) {
+                        model.setState(target)
+                    }
+                }
+                // Coming out of `.expanded` under always-show, the
+                // pills were hidden by the open-panel branch — bring
+                // them back as the shape resettles at peek.
+                if alwaysShow.enabled && !pillsVisible {
+                    withAnimation(.easeOut(duration: 0.18)) {
+                        pillsVisible = true
+                    }
+                }
+            }
+        }
+    
+    }
+
     private var restState: IslandModel.State {
         alwaysShow.enabled ? .peek : .compact
     }
@@ -398,7 +408,7 @@ private struct GlowLayer: View {
                     radius: 20, y: 10
                 )
         }
-        .onAppear { scheduleRest() }
+        .onAppear { if !glowEventActive { scheduleRest() } }
         .onChange(of: glowEventActive) { active in
             if active {
                 restToken = UUID()
@@ -409,11 +419,15 @@ private struct GlowLayer: View {
         }
     }
 
+    /// Any new event replaces the token, so a surviving token alone proves the
+    /// island stayed quiet. Don't re-read `glowEventActive` in the callback:
+    /// `hovering` is a captured `let`, still `true` from before the exit, and
+    /// it kept the sweep spinning until the next refresh.
     private func scheduleRest() {
         let token = UUID()
         restToken = token
         DispatchQueue.main.asyncAfter(deadline: .now() + Self.ambientRestDelay) {
-            guard restToken == token, !glowEventActive else { return }
+            guard restToken == token else { return }
             ambientAwake = false
         }
     }

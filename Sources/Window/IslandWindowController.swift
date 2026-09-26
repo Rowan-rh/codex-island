@@ -136,6 +136,7 @@ final class IslandWindowController {
         trackingTimer = nil
         hasSeenMouseEvent = false
         isMouseInsideIsland = false
+        model.pointerInside = false
         mouseTrackingInstalled = false
         window.ignoresMouseEvents = true
     }
@@ -164,6 +165,7 @@ final class IslandWindowController {
         }
         if inside != isMouseInsideIsland {
             isMouseInsideIsland = inside
+            model.pointerInside = inside
             if inside {
                 NSApp.activate(ignoringOtherApps: true)
                 window.makeKey()
