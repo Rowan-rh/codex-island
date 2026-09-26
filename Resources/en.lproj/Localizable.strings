@@ -482,3 +482,16 @@
 "Now at %d%% used." = "Now at %d%% used.";
 "Runs out around %@ at the current pace." = "Runs out around %@ at the current pace.";
 "Resets at %@." = "Resets at %@.";
+
+/* Placement */
+"Placement" = "Placement";
+"Display location" = "Display location";
+"Built-in notched display uses the island; an external display uses the menu bar." = "Built-in notched display uses the island; an external display uses the menu bar.";
+"Always show the island overlay on the selected display." = "Always show the island overlay on the selected display.";
+"Show a menu bar icon; click it to open all usage information." = "Show a menu bar icon; click it to open all usage information.";
+"Automatic" = "Automatic";
+"Notch" = "Notch";
+"Menu Bar" = "Menu Bar";
+"Sign in with MiniMax CLI" = "Sign in with MiniMax CLI";
+"Expanded" = "Expanded";
+"Collapsed" = "Collapsed";

@@ -482,3 +482,16 @@
 "Now at %d%% used." = "当前已用 %d%%。";
 "Runs out around %@ at the current pace." = "按当前速度，约 %@ 用完。";
 "Resets at %@." = "将于 %@ 重置。";
+
+/* Placement */
+"Placement" = "位置";
+"Display location" = "显示位置";
+"Built-in notched display uses the island; an external display uses the menu bar." = "内置刘海屏使用灵动岛；连接外接显示器时使用菜单栏。";
+"Always show the island overlay on the selected display." = "始终在所选显示器上显示灵动岛。";
+"Show a menu bar icon; click it to open all usage information." = "在菜单栏显示图标，点击即可查看全部用量信息。";
+"Automatic" = "自动";
+"Notch" = "刘海";
+"Menu Bar" = "菜单栏";
+"Sign in with MiniMax CLI" = "通过 MiniMax CLI 登录";
+"Expanded" = "已展开";
+"Collapsed" = "已收起";
