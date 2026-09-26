@@ -539,11 +539,3 @@ notes.
 ## License
 
 MIT - see [LICENSE](LICENSE).
-
-<a href="https://www.star-history.com/?type=date&repos=ericjypark%2Fcodex-island">
- <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=ericjypark/codex-island&type=date&theme=dark&legend=top-left" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=ericjypark/codex-island&type=date&legend=top-left" />
-   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=ericjypark/codex-island&type=date&legend=top-left" />
- </picture>
-</a>
