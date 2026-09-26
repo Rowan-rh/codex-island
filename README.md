@@ -111,6 +111,8 @@ providers' own usage endpoints.
 - **Display placement.** Choose Automatic, Notch, or Menu Bar. Automatic uses
   the built-in Mac notch and switches to a menu-bar icon when an external
   display is connected; clicking the icon opens all visible usage information.
+  The menu bar icon can carry up to four providers: the two island slots plus
+  up to two more added under Settings → Providers.
 - **Display selection.** Auto-pick a notched display or pin the island to a
   specific connected display. Non-notched notch overlays offer compact and
   notch-style widths.
