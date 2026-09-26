@@ -3,7 +3,8 @@ import Combine
 
 /// User preference for the ambient halo + loading sweep.
 ///
-/// Default off: both the halo glow and the cobalt orbit run continuously.
+/// Default off: the halo glow stays lit and the cobalt orbit runs until the
+/// island has been quiet for a minute, then rests until the next event.
 /// With low-power mode on, both surfaces are gated on a "glow event"
 /// predicate — they appear only while a fetch is in flight, the cursor is
 /// hovering the island, or an alert is active. At rest the island goes
