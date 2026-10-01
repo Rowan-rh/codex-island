@@ -104,6 +104,17 @@ swiftc \
 
 swiftc \
   -parse-as-library \
+  -o "$OUT_DIR/token-usage-details-tests" \
+  Sources/Cost/TokenEvent.swift \
+  Sources/Cost/PricingCatalog.swift \
+  Sources/Cost/Pricing.swift \
+  Sources/Cost/TokenUsageDetails.swift \
+  Tests/TokenUsageDetailsTests.swift
+
+"$OUT_DIR/token-usage-details-tests"
+
+swiftc \
+  -parse-as-library \
   -o "$OUT_DIR/pricing-catalog-tests" \
   Sources/Cost/PricingCatalog.swift \
   Tests/PricingCatalogTests.swift

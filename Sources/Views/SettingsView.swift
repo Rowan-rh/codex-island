@@ -567,6 +567,15 @@ struct SettingsView: View {
             ) {
                 tokenModeSegmented
             }
+            SettingsRow(
+                title: "Token usage details",
+                subtitle: "Query model usage, rate, and cache efficiency by time range."
+            ) {
+                Button(L10n.tr("View details…")) {
+                    TokenUsageDetailsWindowController.shared.show()
+                }
+                .controlSize(.small)
+            }
         }
         .padding(.horizontal, 14)
         .padding(.top, 14)

@@ -511,3 +511,23 @@
 "Show only %@" = "Show only %@";
 "Demo data" = "Demo data";
 "Check local records" = "Check local records";
+
+/* Token usage details */
+"Token usage details" = "Token usage details";
+"Query model usage, rate, and cache efficiency by time range." = "Query model usage, rate, and cache efficiency by time range.";
+"View details…" = "View details…";
+"Local call records grouped by model." = "Local call records grouped by model.";
+"Token usage details could not be loaded." = "Token usage details could not be loaded.";
+"Time range" = "Time range";
+"7 days" = "7 days";
+"30 days" = "30 days";
+"Custom" = "Custom";
+"Loading…" = "Loading…";
+"Calls" = "Calls";
+"Average rate" = "Average rate";
+"Cache hit rate" = "Cache hit rate";
+"Model" = "Model";
+"Input / output" = "Input / output";
+"Rate" = "Rate";
+"Cache hit" = "Cache hit";
+"No token calls in this time range." = "No token calls in this time range.";
