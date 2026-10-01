@@ -525,6 +525,8 @@
 "Loading…" = "Loading…";
 "Calls" = "Calls";
 "Average rate" = "Average rate";
+"Generation rate" = "Generation rate";
+"Output rate" = "Output rate";
 "Cache hit rate" = "Cache hit rate";
 "Model" = "Model";
 "Input / output" = "Input / output";

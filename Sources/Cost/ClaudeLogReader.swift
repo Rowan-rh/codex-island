@@ -39,6 +39,7 @@ enum ClaudeLogReader {
                     outputTokens: ev.outputTokens,
                     cacheCreationTokens: ev.cacheCreationTokens,
                     cacheReadTokens: ev.cacheReadTokens,
+                    generationDurationSeconds: ev.generationDurationSeconds,
                     recordID: ev.dedupKey.isEmpty
                         ? LogParseCache.recordID(file: file, timestamp: ev.timestamp, occurrences: &occurrences)
                         : ev.dedupKey
@@ -99,11 +100,13 @@ enum ClaudeLogReader {
         formatterNoFractional.formatOptions = [.withInternetDateTime]
 
         var out: [CachedEvent] = []
+        var responseStart: Date?
         LogParseCache.streamLines(at: url) { lineData in
             if let event = parseLine(
                 lineData,
                 formatter: formatter,
-                formatterNoFractional: formatterNoFractional
+                formatterNoFractional: formatterNoFractional,
+                responseStart: &responseStart
             ) {
                 out.append(event)
             }
@@ -116,10 +119,21 @@ enum ClaudeLogReader {
     private static func parseLine(
         _ lineData: Data,
         formatter: ISO8601DateFormatter,
-        formatterNoFractional: ISO8601DateFormatter
+        formatterNoFractional: ISO8601DateFormatter,
+        responseStart: inout Date?
     ) -> CachedEvent? {
         guard let raw = try? JSONSerialization.jsonObject(with: lineData) as? [String: Any]
         else { return nil }
+
+        let timestampString = raw["timestamp"] as? String ?? ""
+        let timestamp = formatter.date(from: timestampString)
+            ?? formatterNoFractional.date(from: timestampString)
+            ?? Date.distantPast
+
+        if (raw["type"] as? String) == "user" {
+            if timestamp != .distantPast { responseStart = timestamp }
+            return nil
+        }
 
         // Only assistant messages carry usage. The shape is consistent
         // across Claude Code versions: top-level `type == "assistant"`,
@@ -144,11 +158,6 @@ enum ClaudeLogReader {
             ? ""
             : "\(messageId):\(requestId)"
 
-        let timestampString = raw["timestamp"] as? String ?? ""
-        let timestamp = formatter.date(from: timestampString)
-            ?? formatterNoFractional.date(from: timestampString)
-            ?? Date.distantPast
-
         let input = (usage["input_tokens"] as? Int) ?? 0
         let output = (usage["output_tokens"] as? Int) ?? 0
         let cacheCreate = (usage["cache_creation_input_tokens"] as? Int) ?? 0
@@ -164,14 +173,21 @@ enum ClaudeLogReader {
             outputTokens: output,
             cacheCreationTokens: cacheCreate,
             cacheReadTokens: cacheRead,
+            generationDurationSeconds: measuredDuration(from: responseStart, through: timestamp),
             dedupKey: dedupKey
         )
+    }
+
+    private static func measuredDuration(from start: Date?, through end: Date) -> TimeInterval? {
+        guard let start else { return nil }
+        let duration = end.timeIntervalSince(start)
+        return duration > 0 && duration <= 6 * 3600 ? duration : nil
     }
 
     // MARK: - Per-file cache
 
     /// Bump on any breaking change to `CachedEvent` to force a clean re-parse.
-    private static let cacheVersion = 1
+    private static let cacheVersion = 2
 
     private struct CachedEvent: Codable {
         let timestamp: Date
@@ -180,6 +196,7 @@ enum ClaudeLogReader {
         let outputTokens: Int
         let cacheCreationTokens: Int
         let cacheReadTokens: Int
+        let generationDurationSeconds: TimeInterval?
         let dedupKey: String
     }
 }
