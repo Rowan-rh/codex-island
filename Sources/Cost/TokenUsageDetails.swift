@@ -9,7 +9,7 @@ struct TokenUsageDetailRow: Identifiable {
     let outputTokens: Int
     let cacheCreationTokens: Int
     let cacheReadTokens: Int
-    let tokensPerHour: Double
+    let tokensPerSecond: Double
 
     var id: String { "\(provider.rawValue):\(model)" }
     var totalTokens: Int { inputTokens + outputTokens + cacheCreationTokens + cacheReadTokens }
@@ -28,8 +28,8 @@ struct TokenUsageDetailSummary {
     var totalTokens: Int { rows.reduce(0) { $0 + $1.totalTokens } }
     var cacheReadTokens: Int { rows.reduce(0) { $0 + $1.cacheReadTokens } }
     var promptTokens: Int { rows.reduce(0) { $0 + $1.promptTokens } }
-    var tokensPerHour: Double {
-        totalTokens > 0 ? Double(totalTokens) / max(end.timeIntervalSince(start) / 3600, 1.0 / 60) : 0
+    var tokensPerSecond: Double {
+        totalTokens > 0 ? Double(totalTokens) / max(end.timeIntervalSince(start), 1) : 0
     }
     var cacheHitRate: Double {
         promptTokens > 0 ? Double(cacheReadTokens) / Double(promptTokens) : 0
@@ -62,7 +62,7 @@ enum TokenUsageDetails {
             buckets[key] = (event.provider, model, bucket)
         }
 
-        let hours = max(end.timeIntervalSince(start) / 3600, 1.0 / 60)
+        let seconds = max(end.timeIntervalSince(start), 1)
         let rows = buckets.values.map { provider, model, bucket in
             let total = bucket.inputTokens + bucket.outputTokens
                 + bucket.cacheCreationTokens + bucket.cacheReadTokens
@@ -75,7 +75,7 @@ enum TokenUsageDetails {
                 outputTokens: bucket.outputTokens,
                 cacheCreationTokens: bucket.cacheCreationTokens,
                 cacheReadTokens: bucket.cacheReadTokens,
-                tokensPerHour: Double(total) / hours
+                tokensPerSecond: Double(total) / seconds
             )
         }
         .sorted {

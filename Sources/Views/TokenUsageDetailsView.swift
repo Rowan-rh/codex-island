@@ -139,7 +139,7 @@ struct TokenUsageDetailsView: View {
         HStack(spacing: 10) {
             metricCard("Tokens", value: Self.compact(summary.totalTokens), tint: IslandColor.codex)
             metricCard("Calls", value: summary.callCount.formatted(), tint: IslandColor.claude)
-            metricCard("Average rate", value: "\(Self.compact(Int(summary.tokensPerHour)))/h", tint: .cyan)
+            metricCard("Average rate", value: "\(Self.rate(summary.tokensPerSecond)) tok/s", tint: .cyan)
             metricCard("Cache hit rate", value: summary.cacheHitRate.formatted(.percent.precision(.fractionLength(1))), tint: .green)
         }
         .padding(.horizontal, 22)
@@ -215,7 +215,7 @@ struct TokenUsageDetailsView: View {
             tableValue(row.callCount.formatted(), width: 60)
             tableValue(Self.compact(row.totalTokens), width: 90)
             tableValue("\(Self.compact(row.inputTokens)) / \(Self.compact(row.outputTokens))", width: 130)
-            tableValue("\(Self.compact(Int(row.tokensPerHour)))/h", width: 90)
+            tableValue("\(Self.rate(row.tokensPerSecond)) tok/s", width: 90)
             tableValue(row.cacheHitRate.formatted(.percent.precision(.fractionLength(1))), width: 90)
         }
         .font(Typography.label.monospacedDigit())
@@ -248,6 +248,13 @@ struct TokenUsageDetailsView: View {
         if value >= 1_000_000 { return String(format: "%.1fM", amount / 1_000_000) }
         if value >= 1_000 { return String(format: "%.1fK", amount / 1_000) }
         return value.formatted()
+    }
+
+    private static func rate(_ value: Double) -> String {
+        if value >= 1_000 { return String(format: "%.1fK", value / 1_000) }
+        if value >= 10 { return String(format: "%.1f", value) }
+        if value > 0 { return String(format: "%.2f", value) }
+        return "0"
     }
 
     private static func providerName(_ provider: TokenEvent.Provider) -> String {

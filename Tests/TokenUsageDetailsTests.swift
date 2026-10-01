@@ -23,7 +23,8 @@ struct TokenUsageDetailsTests {
         expect(summary.callCount == 2 && summary.totalTokens == 410, "sums calls and all token categories")
         expect(summary.rows[0].inputTokens == 150 && summary.rows[0].outputTokens == 30,
                "keeps input and output metrics separate")
-        expect(abs(summary.tokensPerHour - 205) < 0.001, "computes average token rate over the interval")
+        expect(abs(summary.tokensPerSecond - (410.0 / 7200.0)) < 0.000001,
+               "computes average tokens per second over the interval")
         expect(abs(summary.cacheHitRate - (200.0 / 380.0)) < 0.0001,
                "computes cache hits against cacheable prompt tokens")
     }
