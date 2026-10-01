@@ -525,6 +525,8 @@
 "Loading…" = "加载中…";
 "Calls" = "调用次数";
 "Average rate" = "平均速率";
+"Generation rate" = "生成速率";
+"Output rate" = "输出速率";
 "Cache hit rate" = "缓存命中率";
 "Model" = "模型";
 "Input / output" = "输入 / 输出";

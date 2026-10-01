@@ -9,13 +9,17 @@ struct TokenUsageDetailRow: Identifiable {
     let outputTokens: Int
     let cacheCreationTokens: Int
     let cacheReadTokens: Int
-    let tokensPerSecond: Double
+    let measuredOutputTokens: Int
+    let measuredDurationSeconds: TimeInterval
 
     var id: String { "\(provider.rawValue):\(model)" }
     var totalTokens: Int { inputTokens + outputTokens + cacheCreationTokens + cacheReadTokens }
     var promptTokens: Int { inputTokens + cacheCreationTokens + cacheReadTokens }
     var cacheHitRate: Double {
         promptTokens > 0 ? Double(cacheReadTokens) / Double(promptTokens) : 0
+    }
+    var tokensPerSecond: Double? {
+        measuredDurationSeconds > 0 ? Double(measuredOutputTokens) / measuredDurationSeconds : nil
     }
 }
 
@@ -28,8 +32,10 @@ struct TokenUsageDetailSummary {
     var totalTokens: Int { rows.reduce(0) { $0 + $1.totalTokens } }
     var cacheReadTokens: Int { rows.reduce(0) { $0 + $1.cacheReadTokens } }
     var promptTokens: Int { rows.reduce(0) { $0 + $1.promptTokens } }
-    var tokensPerSecond: Double {
-        totalTokens > 0 ? Double(totalTokens) / max(end.timeIntervalSince(start), 1) : 0
+    var tokensPerSecond: Double? {
+        let output = rows.reduce(0) { $0 + $1.measuredOutputTokens }
+        let duration = rows.reduce(0) { $0 + $1.measuredDurationSeconds }
+        return duration > 0 ? Double(output) / duration : nil
     }
     var cacheHitRate: Double {
         promptTokens > 0 ? Double(cacheReadTokens) / Double(promptTokens) : 0
@@ -45,7 +51,13 @@ enum TokenUsageDetails {
         var cacheReadTokens = 0
     }
 
-    static func summarize(events: [TokenEvent], from start: Date, through end: Date) -> TokenUsageDetailSummary {
+    private struct RateAccumulator {
+        var outputTokens = 0
+        var durationSeconds: TimeInterval = 0
+    }
+
+    static func summarize(events: [TokenEvent], rateEvents: [TokenEvent]? = nil,
+                          from start: Date, through end: Date) -> TokenUsageDetailSummary {
         guard end > start else { return TokenUsageDetailSummary(rows: [], start: start, end: end) }
         var buckets: [String: (TokenEvent.Provider, String, Accumulator)] = [:]
 
@@ -62,10 +74,21 @@ enum TokenUsageDetails {
             buckets[key] = (event.provider, model, bucket)
         }
 
-        let seconds = max(end.timeIntervalSince(start), 1)
+        var rateBuckets: [String: RateAccumulator] = [:]
+        for rawEvent in (rateEvents ?? events) where rawEvent.timestamp >= start && rawEvent.timestamp <= end {
+            let event = rawEvent.attributedByModel()
+            guard event.outputTokens > 0, let duration = event.generationDurationSeconds,
+                  duration > 0, duration <= 6 * 3600 else { continue }
+            let model = Pricing.canonicalModelName(event.model)
+            let key = "\(event.provider.rawValue):\(model)"
+            var bucket = rateBuckets[key] ?? RateAccumulator()
+            bucket.outputTokens += event.outputTokens
+            bucket.durationSeconds += duration
+            rateBuckets[key] = bucket
+        }
+
         let rows = buckets.values.map { provider, model, bucket in
-            let total = bucket.inputTokens + bucket.outputTokens
-                + bucket.cacheCreationTokens + bucket.cacheReadTokens
+            let rate = rateBuckets["\(provider.rawValue):\(model)"] ?? RateAccumulator()
             return TokenUsageDetailRow(
                 provider: provider,
                 model: model,
@@ -75,7 +98,8 @@ enum TokenUsageDetails {
                 outputTokens: bucket.outputTokens,
                 cacheCreationTokens: bucket.cacheCreationTokens,
                 cacheReadTokens: bucket.cacheReadTokens,
-                tokensPerSecond: Double(total) / seconds
+                measuredOutputTokens: rate.outputTokens,
+                measuredDurationSeconds: rate.durationSeconds
             )
         }
         .sorted {

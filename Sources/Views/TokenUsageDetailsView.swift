@@ -3,6 +3,7 @@ import SwiftUI
 @MainActor
 final class TokenUsageDetailsModel: ObservableObject {
     @Published private(set) var events: [TokenEvent] = []
+    @Published private(set) var rateEvents: [TokenEvent] = []
     @Published private(set) var loading = false
     @Published private(set) var error: String?
 
@@ -15,15 +16,18 @@ final class TokenUsageDetailsModel: ObservableObject {
                 let events = try UsageLedger.Source.allCases.flatMap {
                     try UsageLedger.shared.savedSnapshot(source: $0).events
                 }
-                await self?.finish(events: events)
+                let rateEvents = CodexLogReader.scan(lookbackDays: nil)
+                    + ClaudeLogReader.scan(lookbackDays: nil)
+                await self?.finish(events: events, rateEvents: rateEvents)
             } catch {
                 await self?.fail()
             }
         }
     }
 
-    private func finish(events: [TokenEvent]) {
+    private func finish(events: [TokenEvent], rateEvents: [TokenEvent]) {
         self.events = events
+        self.rateEvents = rateEvents
         loading = false
     }
 
@@ -67,7 +71,8 @@ struct TokenUsageDetailsView: View {
     }
 
     private var summary: TokenUsageDetailSummary {
-        TokenUsageDetails.summarize(events: model.events, from: interval.0, through: interval.1)
+        TokenUsageDetails.summarize(events: model.events, rateEvents: model.rateEvents,
+                                    from: interval.0, through: interval.1)
     }
 
     var body: some View {
@@ -139,7 +144,7 @@ struct TokenUsageDetailsView: View {
         HStack(spacing: 10) {
             metricCard("Tokens", value: Self.compact(summary.totalTokens), tint: IslandColor.codex)
             metricCard("Calls", value: summary.callCount.formatted(), tint: IslandColor.claude)
-            metricCard("Average rate", value: "\(Self.rate(summary.tokensPerSecond)) tok/s", tint: .cyan)
+            metricCard("Generation rate", value: Self.rateLabel(summary.tokensPerSecond), tint: .cyan)
             metricCard("Cache hit rate", value: summary.cacheHitRate.formatted(.percent.precision(.fractionLength(1))), tint: .green)
         }
         .padding(.horizontal, 22)
@@ -198,7 +203,7 @@ struct TokenUsageDetailsView: View {
             tableLabel("Calls", width: 60)
             tableLabel("Tokens", width: 90)
             tableLabel("Input / output", width: 130)
-            tableLabel("Rate", width: 90)
+            tableLabel("Output rate", width: 90)
             tableLabel("Cache hit", width: 90)
         }
         .padding(.horizontal, 14)
@@ -215,7 +220,7 @@ struct TokenUsageDetailsView: View {
             tableValue(row.callCount.formatted(), width: 60)
             tableValue(Self.compact(row.totalTokens), width: 90)
             tableValue("\(Self.compact(row.inputTokens)) / \(Self.compact(row.outputTokens))", width: 130)
-            tableValue("\(Self.rate(row.tokensPerSecond)) tok/s", width: 90)
+            tableValue(Self.rateLabel(row.tokensPerSecond), width: 90)
             tableValue(row.cacheHitRate.formatted(.percent.precision(.fractionLength(1))), width: 90)
         }
         .font(Typography.label.monospacedDigit())
@@ -248,6 +253,11 @@ struct TokenUsageDetailsView: View {
         if value >= 1_000_000 { return String(format: "%.1fM", amount / 1_000_000) }
         if value >= 1_000 { return String(format: "%.1fK", amount / 1_000) }
         return value.formatted()
+    }
+
+    private static func rateLabel(_ value: Double?) -> String {
+        guard let value else { return "—" }
+        return "\(rate(value)) tok/s"
     }
 
     private static func rate(_ value: Double) -> String {
