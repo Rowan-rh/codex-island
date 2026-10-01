@@ -36,6 +36,7 @@ enum CodexLogReader {
                     outputTokens: ev.outputTokens,
                     cacheCreationTokens: 0,
                     cacheReadTokens: ev.cacheReadTokens,
+                    generationDurationSeconds: ev.generationDurationSeconds,
                     recordID: LogParseCache.recordID(file: file, timestamp: ev.timestamp, occurrences: &occurrences)
                 ))
             }
@@ -61,6 +62,8 @@ enum CodexLogReader {
         formatterNoFractional.formatOptions = [.withInternetDateTime]
 
         var currentModel: String?
+        var responseStart: Date?
+        var pendingDuration: TimeInterval?
         var out: [CachedEvent] = []
 
         // `maxLineBytes` skips the multi-MB `response_item` blobs (base64
@@ -71,7 +74,8 @@ enum CodexLogReader {
             // `event_msg`/`token_count` (usage) — carry these markers. A cheap
             // byte-scan rejects everything else before paying for JSON parsing.
             guard lineData.range(of: tokenCountMarker) != nil
-                    || lineData.range(of: turnContextMarker) != nil else { return }
+                    || lineData.range(of: turnContextMarker) != nil
+                    || lineData.range(of: responseItemMarker) != nil else { return }
 
             guard let raw = try? JSONSerialization.jsonObject(with: lineData) as? [String: Any],
                   let type = raw["type"] as? String else { return }
@@ -83,17 +87,28 @@ enum CodexLogReader {
                 return
             }
 
+            let timestampString = raw["timestamp"] as? String ?? ""
+            let timestamp = formatter.date(from: timestampString)
+                ?? formatterNoFractional.date(from: timestampString)
+                ?? Date.distantPast
+
+            if type == "response_item", let payload = raw["payload"] as? [String: Any] {
+                let itemType = payload["type"] as? String
+                let role = payload["role"] as? String
+                if (itemType == "message" && role == "user") || itemType == "function_call_output" {
+                    if timestamp != .distantPast { responseStart = timestamp }
+                } else if itemType == "function_call" || (itemType == "message" && role == "assistant") {
+                    pendingDuration = measuredDuration(from: responseStart, through: timestamp)
+                }
+                return
+            }
+
             guard type == "event_msg",
                   let payload = raw["payload"] as? [String: Any],
                   (payload["type"] as? String) == "token_count",
                   let info = payload["info"] as? [String: Any],
                   let last = info["last_token_usage"] as? [String: Any]
             else { return }
-
-            let timestampString = raw["timestamp"] as? String ?? ""
-            let timestamp = formatter.date(from: timestampString)
-                ?? formatterNoFractional.date(from: timestampString)
-                ?? Date.distantPast
 
             // Codex reports input_tokens INCLUDING the cached portion. Bill
             // the non-cached delta at the input rate and the cached portion
@@ -115,10 +130,18 @@ enum CodexLogReader {
                 model: model,
                 inputTokens: nonCachedInput,
                 outputTokens: output,
-                cacheReadTokens: cached
+                cacheReadTokens: cached,
+                generationDurationSeconds: pendingDuration
             ))
+            pendingDuration = nil
         }
         return out
+    }
+
+    private static func measuredDuration(from start: Date?, through end: Date) -> TimeInterval? {
+        guard let start else { return nil }
+        let duration = end.timeIntervalSince(start)
+        return duration > 0 && duration <= 6 * 3600 ? duration : nil
     }
 
     // MARK: - Line pre-filter
@@ -130,10 +153,11 @@ enum CodexLogReader {
     private static let maxUsefulLineBytes = 1 << 20
     private static let tokenCountMarker = Data("token_count".utf8)
     private static let turnContextMarker = Data("turn_context".utf8)
+    private static let responseItemMarker = Data("\"type\":\"response_item\"".utf8)
 
     // MARK: - Per-file cache
 
-    private static let cacheVersion = 1
+    private static let cacheVersion = 2
 
     private struct CachedEvent: Codable {
         let timestamp: Date
@@ -141,5 +165,6 @@ enum CodexLogReader {
         let inputTokens: Int
         let outputTokens: Int
         let cacheReadTokens: Int
+        let generationDurationSeconds: TimeInterval?
     }
 }

@@ -185,11 +185,16 @@ struct UsageLedgerTests {
             {"type":"assistant","timestamp":"\(timestamp)","requestId":"\(id)","message":{"id":"\(id)","model":"claude-sonnet-4-6","usage":{"input_tokens":\(input),"output_tokens":\(output),"cache_creation_input_tokens":30,"cache_read_input_tokens":400}}}
             """
         }
+        let claudeUser = """
+            {"type":"user","timestamp":"2026-01-09T00:59:50Z","message":{"role":"user"}}
+            """
         let claudeFile = claudeRoot.appendingPathComponent("session.jsonl")
-        try Data([claudeRow("call", output: 10), claudeRow("call", output: 30), claudeRow("call", output: 10)].joined(separator: "\n").utf8).write(to: claudeFile)
+        try Data([claudeUser, claudeRow("call", output: 10), claudeRow("call", output: 30), claudeRow("call", output: 10)].joined(separator: "\n").utf8).write(to: claudeFile)
         let finalClaude = ClaudeLogReader.scan(lookbackDays: nil, roots: [claudeRoot])
         expect(finalClaude.count == 1 && finalClaude.first?.outputTokens == 30,
                "Claude streaming repeats retain the most complete actual usage row")
+        expect(finalClaude.first?.generationDurationSeconds == 10,
+               "Claude generation duration spans user input to the completed assistant row")
         try Data([claudeRow("call", output: 30), claudeRow("call", input: 200, output: 20)].joined(separator: "\n").utf8).write(to: claudeFile)
         let conflicting = ClaudeLogReader.scan(lookbackDays: nil, roots: [claudeRoot])
         expect(conflicting.first?.inputTokens == 100 && conflicting.first?.outputTokens == 30,
@@ -211,13 +216,24 @@ struct UsageLedgerTests {
             {"type":"event_msg","timestamp":"\(timestamp)","payload":{"type":"token_count","info":{"last_token_usage":{"input_tokens":100,"cached_input_tokens":60,"output_tokens":\(output)}}}}
             """
         }
+        func codexResponse(_ timestamp: String, type: String, role: String? = nil) -> String {
+            let roleField = role.map { ",\"role\":\"\($0)\"" } ?? ""
+            return "{\"type\":\"response_item\",\"timestamp\":\"\(timestamp)\",\"payload\":{\"type\":\"\(type)\"\(roleField)}}"
+        }
         let codexFile = codexRoot.appendingPathComponent("rollout-session.jsonl")
         let codexFirst = codexRow("2026-01-09T01:00:00Z", output: 20)
         let codexSecond = codexRow("2026-01-09T02:00:00Z", output: 40)
-        try Data([context, codexFirst, codexSecond].joined(separator: "\n").utf8).write(to: codexFile)
+        let firstStart = codexResponse("2026-01-09T00:59:50Z", type: "message", role: "user")
+        let firstEnd = codexResponse("2026-01-09T00:59:58Z", type: "function_call")
+        let secondStart = codexResponse("2026-01-09T01:59:50Z", type: "function_call_output")
+        let secondEnd = codexResponse("2026-01-09T01:59:55Z", type: "message", role: "assistant")
+        try Data([context, firstStart, firstEnd, codexFirst, secondStart, secondEnd, codexSecond].joined(separator: "\n").utf8).write(to: codexFile)
         let codexLedger = UsageLedger(url: root.appendingPathComponent("codex.sqlite3"))
-        _ = codexLedger.retain(CodexLogReader.scan(lookbackDays: nil, root: codexRoot), source: .codex, now: now)
-        try Data([context, codexSecond].joined(separator: "\n").utf8).write(to: codexFile)
+        let measuredCodex = CodexLogReader.scan(lookbackDays: nil, root: codexRoot)
+        expect(measuredCodex.map(\.generationDurationSeconds) == [8, 5],
+               "Codex generation durations exclude tool execution time")
+        _ = codexLedger.retain(measuredCodex, source: .codex, now: now)
+        try Data([context, secondStart, secondEnd, codexSecond].joined(separator: "\n").utf8).write(to: codexFile)
         let retainedCodex = codexLedger.retain(CodexLogReader.scan(lookbackDays: nil, root: codexRoot), source: .codex, now: now)
         expect(retainedCodex.events.count == 2 && total(retainedCodex.events) == 260,
                "Codex event identity survives truncated source logs")

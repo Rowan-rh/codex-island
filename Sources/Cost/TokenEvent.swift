@@ -25,6 +25,10 @@ struct TokenEvent {
     /// (Codex calls these "cached_input_tokens" — they are billed at a
     /// discount but still draw from the input bucket).
     let cacheReadTokens: Int
+    /// End-to-end model response time measured from a user/tool result to
+    /// the next function call or assistant message. Source logs that do not
+    /// expose both boundaries leave this nil.
+    var generationDurationSeconds: TimeInterval? = nil
     var recordID: String? = nil
     var recordAliases: [String] = []
     /// Provider of the tool whose log recorded this event, when `provider`
@@ -44,6 +48,7 @@ struct TokenEvent {
         return TokenEvent(provider: inferred, timestamp: timestamp, model: model,
                           inputTokens: inputTokens, outputTokens: outputTokens,
                           cacheCreationTokens: cacheCreationTokens, cacheReadTokens: cacheReadTokens,
+                          generationDurationSeconds: generationDurationSeconds,
                           recordID: recordID, recordAliases: recordAliases, origin: recordingProvider)
     }
 }
